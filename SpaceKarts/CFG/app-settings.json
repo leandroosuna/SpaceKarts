@@ -1,0 +1,24 @@
+﻿{
+
+  "AutoAdjust": "false",
+  "ScreenWidth": "1366",
+  "ScreenHeight": "768",
+  "Fullscreen": "false",
+  //"ScreenWidth": "1920",
+  //"ScreenHeight": "1080",
+  //"Fullscreen": "true",
+
+  "Borderless": "true",
+  "Vsync": "false",
+  "FPSLimit": "false",
+  "FPSMax": "100",
+  "MouseVisible": "false",
+
+  "BinFolder": "bin/",
+  "ObjFolder": "obj/",
+  "ContentExtension": ".xnb",
+  "ContentFolder": "Content/Models",
+  "FbxExtension": ".fbx",
+  "FbxImporterName": "FbxImporter",
+  "ProcessorName": "Animation Processor"
+}

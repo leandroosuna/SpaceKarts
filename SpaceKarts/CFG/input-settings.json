@@ -1,0 +1,21 @@
+{
+  "KeyEnter": "Enter",
+  "KeyEscape": "Escape",
+  "keyAccelerate": "W",
+  "keyTurnLeft": "A",
+  "keyBrake": "S",
+  "keyTurnRight": "D",
+  "keyBoost": "E",
+  "keyJump": "Space",
+  "KeyFire": "F20",
+  "KeyShield": "F21",
+  "keyAltAccelerate": "Up",
+  "keyAltTurnLeft": "Left",
+  "keyAltBrake": "Down",
+  "keyAltTurnRight": "Right",
+  "keyAltBoost": "K",
+  "keyAltJump": "L",
+  "KeyAltFire": "RightShift",
+  "KeyAltShield": "RightControl"
+
+}
