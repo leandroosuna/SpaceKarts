@@ -8,10 +8,17 @@ using Microsoft.Xna.Framework.Media;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Net;
 
 using SpaceKarts.Cameras;
 using SpaceKarts.Managers;
 using SpaceKarts.Effects;
+using System.Net.Sockets;
+using System.Threading.Tasks;
+using System.Runtime.InteropServices;
+using System.Text;
+using Riptide.Utils;
+using Riptide;
 
 namespace SpaceKarts
 {
@@ -97,7 +104,31 @@ namespace SpaceKarts
             Graphics.ApplyChanges();
             IsMouseVisible = bool.Parse(CFG["MouseVisible"]);
 
+            //string hostname = "nix.dynamic-dns.net";
+            //IPAddress[] ips = Dns.GetHostAddresses(hostname);
+
+            //foreach (var ip in ips)
+            //{
+            //    Debug.WriteLine("SERVER IP "+ip.ToString());
+            //}
+            RiptideLogger.Initialize(Console.WriteLine, false);
+
+            //NetworkManager.Connect("127.0.0.1", 5000);
+            NetworkManager.Connect("192.168.1.45", 5000);
             
+            Exiting += (s, e) => NetworkManager.Client.Disconnect();
+
+
+            ////IPAddress svip = IPAddress.Parse("181.26.28.221");
+            //udpClient = new UDPClient(ips[0], 5000);
+
+            //udpClient.StartMessageLoop();
+            //Debug.WriteLine("UDP start rec loop");
+
+
+
+
+
         }
         
         protected override void Initialize()
@@ -118,6 +149,8 @@ namespace SpaceKarts
             audioListener = new AudioListener();
             fullScreenQuad = new FullScreenQuad(GraphicsDevice);
             SpriteBatch = new SpriteBatch(GraphicsDevice);
+
+
 
             base.Initialize();
         }
@@ -189,7 +222,22 @@ namespace SpaceKarts
             
             prevPositionTarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, SurfaceFormat.HalfVector4, DepthFormat.Depth24Stencil8);
 
+            //byte[] testBuffer;
+            //ShakePacket sp = new ShakePacket();
+            //sp.id = 20;
+            //testBuffer = udpClient.createHandShakeDataPacket(sp);
 
+
+            //_ = udpClient.Send(testBuffer);
+
+            //GameDataPacket gdp = new GameDataPacket();
+            //gdp.position = new Vector3(1, 2, 3);
+
+            //gdp.id = 2;
+
+            //testBuffer = udpClient.createGameDataPacket(gdp);
+
+            //_ = udpClient.Send(testBuffer);
             //engineInstance.Play();
         }
         float deltaTimeU;
@@ -208,6 +256,8 @@ namespace SpaceKarts
             audioListener.Position = camera.position;
             audioListener.Forward = camera.frontDirection;
             audioListener.Up = camera.upDirection;
+
+            NetworkManager.Client.Update();
 
             base.Update(gameTime);
         }
@@ -447,4 +497,99 @@ namespace SpaceKarts
         PAUSE,
         OPTIONS
     }
+    //public class UDPClient
+    //{
+    //    UDPClient socket;
+    //    IPEndPoint ep;
+
+    //    public UDPClient(IPAddress address, int port)
+    //    {
+    //        ep = new IPEndPoint(address, port);
+    //    }
+
+    //    public void StartMessageLoop()
+    //    {
+    //        _ = Task.Run(async () =>
+    //        {
+    //            try
+    //            {
+    //                SocketReceiveMessageFromResult res;
+    //                while (true)
+    //                {
+    //                    res = await _socket.ReceiveMessageFromAsync(_buffer_recv_segment, SocketFlags.None, _ep);
+    //                    Debug.WriteLine($"UDP: {Encoding.UTF8.GetString(_buffer_recv,0,res.ReceivedBytes)}");
+    //                }
+    //            }
+    //            catch (Exception ex)
+    //            {
+    //                Debug.WriteLine(ex.ToString());
+    //            }
+    //        });
+    //    }
+    //    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    //    public struct ShakePacket
+    //    {
+    //        public UInt16 id;
+    //    }
+    //    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    //    public struct GameDataPacket
+    //    {
+    //        public UInt16 id;
+    //        public Vector3 position;
+    //    }
+    //    public async Task Send(byte[] data)
+    //    {
+    //        try 
+    //        {
+    //            var s = new ArraySegment<byte>(data);
+    //            Debug.WriteLine("UDP send");
+    //            await _socket.SendToAsync(s, SocketFlags.None, _ep);
+    //            Debug.WriteLine("UDP awaited");
+    //        }
+    //        catch (Exception ex)
+    //        {
+    //            Debug.WriteLine(ex.ToString()); 
+    //        }
+            
+    //    }
+    //    public byte[] createGameDataPacket(GameDataPacket gdp)
+    //    {
+    //        byte[] buffer = new byte[Marshal.SizeOf(gdp) + 2];
+    //        byte[] type = BitConverter.GetBytes((UInt16)1);
+    //        byte[] data = GameDataPacketToByteArray(gdp);
+
+    //        Array.Copy(type, 0, buffer, 0, 2);
+    //        Array.Copy(data, 0, buffer, 2, data.Length);
+
+    //        return buffer;
+    //    }
+    //    public byte[] createHandShakeDataPacket(ShakePacket sp)
+    //    {
+    //        byte[] buffer = new byte[Marshal.SizeOf(sp) + 2];
+    //        byte[] type = BitConverter.GetBytes((UInt16)0);
+    //        byte[] data = ShakePacketToByteArray(sp);
+
+    //        Array.Copy(type, 0, buffer, 0, 2);
+    //        Array.Copy(data, 0, buffer, 2, data.Length);
+
+    //        return buffer;
+    //    }
+
+    //    public byte[] GameDataPacketToByteArray(GameDataPacket packet)
+    //    {
+    //        byte[] buffer = new byte[Marshal.SizeOf(packet)];
+
+    //        MemoryMarshal.Write(buffer, ref packet);
+
+    //        return buffer;
+    //    }
+    //    public byte[] ShakePacketToByteArray(ShakePacket packet)
+    //    {
+    //        byte[] buffer = new byte[Marshal.SizeOf(packet)];
+
+    //        MemoryMarshal.Write(buffer, ref packet);
+
+    //        return buffer;
+    //    }
+    //}
 }
