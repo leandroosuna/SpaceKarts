@@ -104,30 +104,17 @@ namespace SpaceKarts
             Graphics.ApplyChanges();
             IsMouseVisible = bool.Parse(CFG["MouseVisible"]);
 
-            //string hostname = "nix.dynamic-dns.net";
-            //IPAddress[] ips = Dns.GetHostAddresses(hostname);
+            string hostname = "nix.dynamic-dns.net";
+            IPAddress[] ips = Dns.GetHostAddresses(hostname);
 
-            //foreach (var ip in ips)
-            //{
-            //    Debug.WriteLine("SERVER IP "+ip.ToString());
-            //}
             RiptideLogger.Initialize(Console.WriteLine, false);
 
-            //NetworkManager.Connect("127.0.0.1", 5000);
-            NetworkManager.Connect("192.168.1.45", 5000);
+            string ip = ips[0].ToString();
+            Debug.WriteLine("connecting to " + ip);
             
+            NetworkManager.Connect(ip, 9999);
+
             Exiting += (s, e) => NetworkManager.Client.Disconnect();
-
-
-            ////IPAddress svip = IPAddress.Parse("181.26.28.221");
-            //udpClient = new UDPClient(ips[0], 5000);
-
-            //udpClient.StartMessageLoop();
-            //Debug.WriteLine("UDP start rec loop");
-
-
-
-
 
         }
         
@@ -246,6 +233,7 @@ namespace SpaceKarts
 
             deltaTimeU = (float)gameTime.ElapsedGameTime.TotalSeconds;
             currentInputManager.Update(deltaTimeU);
+            NetworkManager.Client.Update();
 
             camera.Update(deltaTimeU);
 
@@ -257,7 +245,7 @@ namespace SpaceKarts
             audioListener.Forward = camera.frontDirection;
             audioListener.Up = camera.upDirection;
 
-            NetworkManager.Client.Update();
+           
 
             base.Update(gameTime);
         }

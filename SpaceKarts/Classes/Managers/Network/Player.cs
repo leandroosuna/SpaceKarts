@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-
+using System.Diagnostics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -31,13 +31,14 @@ namespace SpaceKarts.Managers
                 pos = Vector2.Normalize(pos);
 
             position += pos * deltaTime * 96;
-
+            Debug.WriteLine("player updating");
             SendPosition();
         }
 
         internal void Draw(SpriteBatch spriteBatch)
         {
             //spriteBatch.Draw(ExampleGame.Pixel, position, null, Color.White, 0, Vector2.Zero, 16, SpriteEffects.None, 0);
+            Debug.WriteLine("player Draw");
         }
 
         private void SendPosition()
