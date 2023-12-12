@@ -17,9 +17,9 @@ namespace SpaceKarts.Effects
         EffectParameter color;
         EffectParameter colorTexture;
         EffectParameter emissiveTexture;
-        //EffectParameter normalMapTexture;
+        EffectParameter normalTexture;
         EffectParameter inverseTransposeWorld;
-        //EffectParameter inverseViewProjection;
+
         EffectParameter lightAmbientColor;
         EffectParameter lightDiffuseColor;
         EffectParameter lightSpecularColor;
@@ -29,7 +29,7 @@ namespace SpaceKarts.Effects
         EffectParameter shininess;
         EffectParameter cameraPosition;
         EffectParameter lightPosition;
-
+        EffectParameter lightEnabled;
 
         public BasicModelEffect(string effect)
         {
@@ -46,7 +46,7 @@ namespace SpaceKarts.Effects
             colorTexture = effect.Parameters["colorTexture"];
             emissiveTexture = effect.Parameters["emissiveTexture"];
             color = effect.Parameters["color"];
-            //normalMapTexture = effect.Parameters["normalMapTexture"];
+            normalTexture = effect.Parameters["normalTexture"];
             inverseTransposeWorld = effect.Parameters["inverseTransposeWorld"];
             //inverseViewProjection = effect.Parameters["inverseViewProjection"];
             cameraPosition = effect.Parameters["cameraPosition"];
@@ -59,6 +59,8 @@ namespace SpaceKarts.Effects
             KD = effect.Parameters["KD"];
             KS = effect.Parameters["KS"];
             shininess = effect.Parameters["shininess"];
+
+            lightEnabled = effect.Parameters["lightEnabled"];
         }
         public void SetWorld(Matrix world)
         {
@@ -144,6 +146,17 @@ namespace SpaceKarts.Effects
         public void SetEmissiveTexture(Texture2D emissiveTex)
         {
             emissiveTexture.SetValue(emissiveTex);
+        }
+        public void SetNormalTexture(Texture2D normalTex)
+        {
+            normalTexture.SetValue(normalTex);
+        }
+        public void SetLightEnabled(bool enabled)
+        {
+            if(enabled)
+                lightEnabled.SetValue(1);
+            else
+                lightEnabled.SetValue(0);
         }
     }
 }

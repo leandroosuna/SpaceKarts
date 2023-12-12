@@ -17,7 +17,7 @@ namespace SpaceKarts.Managers
         static Model[] models;
         static Texture2D[] colors;
         static Texture2D emissive;
-
+        static Texture2D normal;
         static SoundEffect engineSound;
         static SpaceKarts game;
 
@@ -28,7 +28,7 @@ namespace SpaceKarts.Managers
             LoadContent(game.Content, game.basicModelEffect.effect);    
 
             shipList = new List<Ship>();
-            shipList.Add(new Ship(game, models[0], colors[7], emissive, engineSound.CreateInstance()));
+            shipList.Add(new Ship(game, models[0], colors[7], normal, emissive, engineSound.CreateInstance()));
             shipsToDraw = new List<Ship>();
         }
         public static void Update(float deltaTime)
@@ -73,13 +73,13 @@ namespace SpaceKarts.Managers
             emissive = content.Load<Texture2D>(SpaceKarts.ContentFolder3D + "Ships/Textures/StarSparrow_Emission");
 
             //mask = new Texture2D[]{
-            //    content.Load<Texture2D>(CaleShip.ContentFolder3D + "Ships/Textures/Masks/StarSparrow_Mask1"),
-            //    content.Load<Texture2D>(CaleShip.ContentFolder3D + "Ships/Textures/Masks/StarSparrow_Mask2"),
-            //    content.Load<Texture2D>(CaleShip.ContentFolder3D + "Ships/Textures/Masks/StarSparrow_Mask3"),
-            //    content.Load<Texture2D>(CaleShip.ContentFolder3D + "Ships/Textures/Masks/StarSparrow_Mask4")
+            //    content.Load<Texture2D>(SpaceKarts.ContentFolder3D + "Ships/Textures/Masks/StarSparrow_Mask1"),
+            //    content.Load<Texture2D>(SpaceKarts.ContentFolder3D + "Ships/Textures/Masks/StarSparrow_Mask2"),
+            //    content.Load<Texture2D>(SpaceKarts.ContentFolder3D + "Ships/Textures/Masks/StarSparrow_Mask3"),
+            //    content.Load<Texture2D>(SpaceKarts.ContentFolder3D + "Ships/Textures/Masks/StarSparrow_Mask4")
 
             //};
-            //shipNormalTex = Content.Load<Texture2D>(CaleShip.ContentFolder3D + "Ships/Textures/StarSparrow_Normal");
+            normal = content.Load<Texture2D>(SpaceKarts.ContentFolder3D + "Ships/Textures/StarSparrow_Normal");
 
             engineSound = content.Load<SoundEffect>(SpaceKarts.ContentFolderAudio + "engine");
         }

@@ -22,6 +22,7 @@ namespace SpaceKarts.Managers
 
         public Vector3 position;
         public BoundingSphere collider;
+        public BoundingSphere geoCollider;
         public Vector3 color;
         public Vector3 ambientColor;
         public Vector3 specularColor;
@@ -54,22 +55,18 @@ namespace SpaceKarts.Managers
 
         public void DrawLightGeo()
         {
-            if(hasLightGeo)
-            {
-                if(game.bloomEnabled)
-                    basicModelEffect.SetTech("color_lightDis_bloomEn");
-                else
-                    basicModelEffect.SetTech("color_lightDis");
-                basicModelEffect.SetColor(color);
+            basicModelEffect.SetTech("color_solid");
+            basicModelEffect.SetLightEnabled(false);
+            basicModelEffect.SetColor(color);
             
-                foreach (var mesh in sphere.Meshes)
-                {
-                    var w = mesh.ParentBone.Transform * Matrix.CreateScale(0.01f) * Matrix.CreateTranslation(position);
-                    basicModelEffect.SetWorld(w);
-                    basicModelEffect.SetInverseTransposeWorld(Matrix.Invert(Matrix.Transpose(w)));
-                    mesh.Draw();
-                }
+            foreach (var mesh in sphere.Meshes)
+            {
+                var w = mesh.ParentBone.Transform * Matrix.CreateScale(0.01f) * Matrix.CreateTranslation(position);
+                basicModelEffect.SetWorld(w);
+                basicModelEffect.SetInverseTransposeWorld(Matrix.Invert(Matrix.Transpose(w)));
+                mesh.Draw();
             }
+            
         }
         
 

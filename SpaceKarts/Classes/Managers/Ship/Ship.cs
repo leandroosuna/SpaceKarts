@@ -16,6 +16,7 @@ namespace SpaceKarts.Managers
         Model model;
         Texture2D colorTex;
         Texture2D emissiveTex;
+        Texture2D normalTex;
         public SoundEffectInstance engineSound;
         public float enginePitch;
 
@@ -30,16 +31,17 @@ namespace SpaceKarts.Managers
         public BoundingBox boxCollider;
         SpaceKarts game;
         BasicModelEffect effect;
-        public Ship(SpaceKarts game, Model model, Texture2D color, Texture2D emmisive, SoundEffectInstance engineSound) : 
-            this(game, model, color, emmisive, engineSound, new Vector3(0,1.5f,0), 0f, 0f)
+        public Ship(SpaceKarts game, Model model, Texture2D color, Texture2D normal, Texture2D emmisive, SoundEffectInstance engineSound) : 
+            this(game, model, color, normal, emmisive, engineSound, new Vector3(0,1.5f,0), 0f, 0f)
         {
 
         }
         
-        public Ship(SpaceKarts game, Model model, Texture2D color, Texture2D emmisive, SoundEffectInstance engineSound, Vector3 position, float pitch, float yaw)
+        public Ship(SpaceKarts game, Model model, Texture2D color, Texture2D normal, Texture2D emmisive,  SoundEffectInstance engineSound, Vector3 position, float pitch, float yaw)
         {
             this.model = model;
             this.colorTex = color;
+            this.normalTex = normal;
             this.emissiveTex = emmisive;
             this.engineSound = engineSound;
             this.position = position;
@@ -136,10 +138,7 @@ namespace SpaceKarts.Managers
         }
         public void Draw(float deltaTime)
         {
-            if(game.bloomEnabled)
-                effect.SetTech("colorEmTex_lightEn_bloomEn");
-            else
-                effect.SetTech("colorEmTex_lightEn");
+            effect.SetTech("color_tex_normal_emissive");
 
             effect.SetKA(0.2f);
             effect.SetKD(0.7f);
@@ -148,7 +147,7 @@ namespace SpaceKarts.Managers
 
             effect.SetColorTexture(colorTex);
             effect.SetEmissiveTexture(emissiveTex);
-
+            effect.SetNormalTexture(normalTex);
             foreach (var mesh in model.Meshes)
             {
                 var rotation = Matrix.CreateFromYawPitchRoll(MathHelper.ToRadians(yaw), MathHelper.ToRadians(pitch), MathHelper.ToRadians(roll));

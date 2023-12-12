@@ -66,7 +66,7 @@ namespace SpaceKarts.Managers
             keyMappings.Debug1 = new KeyboardKey(Keys.D1);
             keyMappings.Debug2 = new KeyboardKey(Keys.D2);
             keyMappings.Debug3 = new KeyboardKey(Keys.D3);
-
+            keyMappings.Debug9 = new KeyboardKey(Keys.D9);
         }
 
         public abstract void ProcessInput(float deltaTime);
@@ -254,7 +254,7 @@ namespace SpaceKarts.Managers
 
             public List<Key> MappedKeys;
 
-            public Key Debug1,Debug2,Debug3,Debug0;
+            public Key Debug1,Debug2,Debug3,Debug0, Debug9;
 
             public Key convertKey(Keys key)
             {

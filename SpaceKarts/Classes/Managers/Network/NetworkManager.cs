@@ -10,6 +10,7 @@ namespace SpaceKarts.Managers
 {
     internal class NetworkManager
     {
+        public static bool Enabled = false;
         internal static Client Client { get; set; }
 
         public static void Connect(string ip, int port)
@@ -22,7 +23,16 @@ namespace SpaceKarts.Managers
 
            
         }
-
-        
+        public static void UpdateClient()
+        {
+            if(!Enabled) return;
+            Client.Update();
+        }
+        public static void DisconnectClient()
+        {
+            if (!Enabled) return;
+            if(Client != null && Client.IsConnected)
+                Client.Disconnect();
+        }
     }
 }

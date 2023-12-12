@@ -9,9 +9,9 @@
   //"Fullscreen": "true",
 
   "Borderless": "true",
-  "Vsync": "false",
+  "Vsync": "true",
   "FPSLimit": "false",
-  "FPSMax": "100",
+  "FPSMax": "300",
   "MouseVisible": "false",
 
   "BinFolder": "bin/",

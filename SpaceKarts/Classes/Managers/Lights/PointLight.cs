@@ -19,6 +19,7 @@ namespace SpaceKarts.Managers
         {
             this.radius = radius;
             collider = new BoundingSphere(position, radius);
+            geoCollider = new BoundingSphere(position, radius * 0.07f);
             scale = 0.009f * radius;
             //scale = 0.02f * radius;
             world = Matrix.CreateScale(scale) * Matrix.CreateTranslation(position);

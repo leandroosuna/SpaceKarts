@@ -13,6 +13,9 @@ namespace SpaceKarts.Effects
         EffectParameter world;
         EffectParameter view;
         EffectParameter projection;
+        EffectParameter prevView;
+        EffectParameter prevProjection;
+
         EffectParameter colorMap;
         EffectParameter normalMap;
         EffectParameter positionMap;
@@ -49,6 +52,10 @@ namespace SpaceKarts.Effects
             world = effect.Parameters["world"];
             view = effect.Parameters["view"];
             projection = effect.Parameters["projection"];
+
+            prevView = effect.Parameters["prevView"];
+            prevProjection = effect.Parameters["prevProjection"];
+
             colorMap = effect.Parameters["colorMap"];
             normalMap = effect.Parameters["normalMap"];
             positionMap = effect.Parameters["positionMap"];
@@ -84,6 +91,15 @@ namespace SpaceKarts.Effects
         public void SetProjection(Matrix projection)
         {
             this.projection.SetValue(projection);
+        }
+
+        public void SetPrevView(Matrix prevView)
+        {
+            this.prevView?.SetValue(prevView);
+        }
+        public void SetPrevProjection(Matrix prevProjection)
+        {
+            this.prevProjection?.SetValue(prevProjection);
         }
         public void SetInverseViewProjection(Matrix inv)
         {

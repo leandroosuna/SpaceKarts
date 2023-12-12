@@ -24,8 +24,8 @@ namespace SpaceKarts
 {
     public class SpaceKarts : Game
     {
-        GraphicsDeviceManager Graphics;
-        SpriteBatch SpriteBatch;
+        public GraphicsDeviceManager Graphics;
+        public SpriteBatch SpriteBatch;
         SpriteFont Font;
         IConfigurationRoot CFG;
         
@@ -42,6 +42,7 @@ namespace SpaceKarts
         public int screenHeight;
 
         RenderTarget2D colorTarget;
+        RenderTarget2D tempTarget;
         RenderTarget2D normalTarget;
         RenderTarget2D positionTarget;
         RenderTarget2D lightTarget;
@@ -111,10 +112,11 @@ namespace SpaceKarts
 
             string ip = ips[0].ToString();
             Debug.WriteLine("connecting to " + ip);
-            
-            NetworkManager.Connect(ip, 9999);
 
-            Exiting += (s, e) => NetworkManager.Client.Disconnect();
+            NetworkManager.Enabled = false;            
+            //NetworkManager.Connect(ip, 9999);
+
+            Exiting += (s, e) => NetworkManager.DisconnectClient();
 
         }
         
@@ -198,16 +200,27 @@ namespace SpaceKarts
             screenHeight = GraphicsDevice.Viewport.Height;
 
             //test SurfaceFormat.Color for color,normal. 4th target ?
-            colorTarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, SurfaceFormat.HalfVector4, DepthFormat.Depth24Stencil8);
-            normalTarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, SurfaceFormat.HalfVector4, DepthFormat.Depth24Stencil8);
-            positionTarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, SurfaceFormat.Vector4, DepthFormat.Depth24Stencil8);
-            lightTarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, SurfaceFormat.Vector4, DepthFormat.Depth24Stencil8);
+            colorTarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, 
+                SurfaceFormat.HalfVector4, DepthFormat.Depth24Stencil8, 0, RenderTargetUsage.DiscardContents);
+            tempTarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false,
+                SurfaceFormat.HalfVector4, DepthFormat.Depth24Stencil8, 0, RenderTargetUsage.DiscardContents);
 
-            bloomFilterTarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, SurfaceFormat.HalfVector4, DepthFormat.Depth24Stencil8);
-            blurHtarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, SurfaceFormat.HalfVector4, DepthFormat.Depth24Stencil8);
-            blurVtarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, SurfaceFormat.HalfVector4, DepthFormat.Depth24Stencil8);
+            normalTarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, 
+                SurfaceFormat.HalfVector4, DepthFormat.Depth24Stencil8, 0, RenderTargetUsage.DiscardContents);
+            positionTarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, 
+                SurfaceFormat.Vector4, DepthFormat.Depth24Stencil8, 0, RenderTargetUsage.DiscardContents);
+            lightTarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, 
+                SurfaceFormat.Vector4, DepthFormat.Depth24Stencil8, 0, RenderTargetUsage.DiscardContents);
+
+            bloomFilterTarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, 
+                SurfaceFormat.Vector4, DepthFormat.Depth24Stencil8, 0, RenderTargetUsage.DiscardContents);
+            blurHtarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, 
+                SurfaceFormat.HalfVector4, DepthFormat.Depth24Stencil8, 0, RenderTargetUsage.DiscardContents);
+            blurVtarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, 
+                SurfaceFormat.HalfVector4, DepthFormat.Depth24Stencil8, 0, RenderTargetUsage.DiscardContents);
             
-            prevPositionTarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, SurfaceFormat.HalfVector4, DepthFormat.Depth24Stencil8);
+            prevPositionTarget = new RenderTarget2D(GraphicsDevice, screenWidth, screenHeight, false, 
+                SurfaceFormat.HalfVector4, DepthFormat.Depth24Stencil8, 0, RenderTargetUsage.DiscardContents);
 
             //byte[] testBuffer;
             //ShakePacket sp = new ShakePacket();
@@ -233,7 +246,8 @@ namespace SpaceKarts
 
             deltaTimeU = (float)gameTime.ElapsedGameTime.TotalSeconds;
             currentInputManager.Update(deltaTimeU);
-            NetworkManager.Client.Update();
+            NetworkManager.UpdateClient();
+
 
             camera.Update(deltaTimeU);
 
@@ -276,61 +290,78 @@ namespace SpaceKarts
         }
         public bool bloomEnabled = false;
         public bool motionBlurEnabled = false;
-        public int motionBlurIntensity = 4;
+        public int motionBlurIntensity = 5;
+        Ray CalculateCursorRay(Vector2 cursorPosition, Matrix viewMatrix, Matrix projectionMatrix)
+        {
+            Vector3 nearSource = new Vector3(cursorPosition, 0f);
+            Vector3 farSource = new Vector3(cursorPosition, 1f);
+
+            Vector3 nearPoint = GraphicsDevice.Viewport.Unproject(nearSource, projectionMatrix, viewMatrix, Matrix.Identity);
+            Vector3 farPoint = GraphicsDevice.Viewport.Unproject(farSource, projectionMatrix, viewMatrix, Matrix.Identity);
+
+            Vector3 direction = farPoint - nearPoint;
+            direction.Normalize();
+
+            return new Ray(nearPoint, direction);
+        }
+
         void DrawRun(float deltaTime)
         {
+            var view = camera.view;
+            var projection = camera.projection;
 
-            basicModelEffect.SetView(camera.view);
-            basicModelEffect.SetProjection(camera.projection);
-            deferredEffect.SetView(camera.view);
-            deferredEffect.SetProjection(camera.projection);
+            basicModelEffect.SetView(view);
+            basicModelEffect.SetProjection(projection);
+            deferredEffect.SetView(view);
+            deferredEffect.SetProjection(projection);
             deferredEffect.SetCameraPosition(camera.position);
+            deferredEffect.effect.Parameters["inverseViewProjection"]?.SetValue(Matrix.Invert(view * projection));  
+            basicModelEffect.effect.Parameters["zNear"]?.SetValue(camera.nearPlaneDistance);
+            basicModelEffect.effect.Parameters["zFar"]?.SetValue(camera.farPlaneDistance);
 
+            string rayS = "";
+            Ray ray = new Ray(camera.position, camera.frontDirection);
             
+            (bool collided, Vector3 hitPosition)= lightsManager.RayIntersects(ray);
+
+            if(collided)
+            {
+                rayS += "HIT "+ (int)hitPosition.X + "," + (int)hitPosition.Y + ","+(int)hitPosition.Z;
+
+            }
+            
+
             GraphicsDevice.SetRenderTarget(prevPositionTarget);
             SpriteBatch.Begin();
             SpriteBatch.Draw(positionTarget, Vector2.Zero, Color.White);
             SpriteBatch.End();
 
-            if (bloomEnabled)
-                GraphicsDevice.SetRenderTargets(colorTarget, normalTarget, positionTarget, bloomFilterTarget);
-            else
-                GraphicsDevice.SetRenderTargets(colorTarget, normalTarget, positionTarget);
-
+            GraphicsDevice.SetRenderTargets(colorTarget, normalTarget, positionTarget, bloomFilterTarget);
             GraphicsDevice.BlendState = BlendState.NonPremultiplied;
             GraphicsDevice.DepthStencilState = DepthStencilState.Default;
             GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
 
-            drawTrack();
+            //drawTrack();
+            drawPlane();
             ShipManager.Draw(deltaTime);
             lightsManager.DrawLightGeo();
 
-            //lights pass
-            if(bloomEnabled)
-                GraphicsDevice.SetRenderTargets(lightTarget, blurHtarget, blurVtarget);
-            else
-                GraphicsDevice.SetRenderTargets(lightTarget);
-
+            GraphicsDevice.SetRenderTargets(lightTarget, blurHtarget, blurVtarget);
+            //GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer | ClearOptions.Stencil, Color.Black, 1, 0);
             GraphicsDevice.BlendState = BlendState.Additive;
             GraphicsDevice.DepthStencilState = DepthStencilState.None;
 
             deferredEffect.SetColorMap(colorTarget);
             deferredEffect.SetNormalMap(normalTarget);
             deferredEffect.SetPositionMap(positionTarget);
-            if (bloomEnabled)
+
+            //if (bloomEnabled)
                 deferredEffect.SetBloomFilter(bloomFilterTarget);
 
             lightsManager.Draw();
 
             //draw to the screen integrating scene color, lights and other effects
-            //GraphicsDevice.SetRenderTarget(null);
-            //GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer | ClearOptions.Stencil, Color.Black, 1, 0);
             
-
-            GraphicsDevice.SetRenderTarget(null);
-            GraphicsDevice.BlendState = BlendState.NonPremultiplied;
-            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
-            GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
 
             deferredEffect.SetLightMap(lightTarget);
             deferredEffect.SetScreenSize(new Vector2(screenWidth, screenHeight));
@@ -338,44 +369,69 @@ namespace SpaceKarts
             var ep = (int)(ShipManager.shipList[0].enginePitch * 100);
             var esp = (int)(ShipManager.shipList[0].engineSound.Pitch * 100);
 
-            
-
-            if (motionBlurEnabled)
+            if(!bloomEnabled && !motionBlurEnabled)
             {
-                deferredEffect.effect.Parameters["motionBlurIntensity"].SetValue(motionBlurIntensity);
-                deferredEffect.effect.Parameters["prevPositionMap"].SetValue(prevPositionTarget);
+                deferredEffect.SetTech("integrate");
+            }
+            if (bloomEnabled && !motionBlurEnabled)
+            {
+                deferredEffect.SetBlurH(blurHtarget);
+                deferredEffect.SetBlurV(blurVtarget);
+                deferredEffect.SetTech("integrate_bloom");
+            }
+            if (!bloomEnabled && motionBlurEnabled)
+            {
+                deferredEffect.effect.Parameters["motionBlurIntensity"]?.SetValue(motionBlurIntensity);
+                deferredEffect.effect.Parameters["prevPositionMap"]?.SetValue(prevPositionTarget);
 
                 deferredEffect.SetTech("integrate_motion_blur");
+                deferredEffect.effect.Parameters["bloomPassBefore"]?.SetValue(false);
             }
-            else
+            if(bloomEnabled && motionBlurEnabled)
             {
-                if (bloomEnabled)
-                {
-                    deferredEffect.SetTech("integrate_bloom");
-                    deferredEffect.SetBlurH(blurHtarget);
-                    deferredEffect.SetBlurV(blurVtarget);
-                }
-                else
-                    deferredEffect.SetTech("integrate");
-            }
+                GraphicsDevice.SetRenderTarget(tempTarget);
+                GraphicsDevice.BlendState = BlendState.NonPremultiplied;
+                GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+                GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
+                deferredEffect.SetTech("integrate_bloom"); 
+                fullScreenQuad.Draw(deferredEffect.effect);
 
-            //deferredEffect.CurrentTechnique = deferredEffect.Techniques["integrate"];
+                deferredEffect.SetColorMap(tempTarget);
+
+                deferredEffect.effect.Parameters["motionBlurIntensity"]?.SetValue(motionBlurIntensity);
+                deferredEffect.effect.Parameters["prevPositionMap"]?.SetValue(prevPositionTarget);
+                deferredEffect.effect.Parameters["bloomPassBefore"]?.SetValue(true);
+                deferredEffect.SetTech("integrate_motion_blur");
+
+            }
+           
+
+            GraphicsDevice.SetRenderTarget(null);
+            GraphicsDevice.BlendState = BlendState.NonPremultiplied;
+            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+            GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
+
+            
             fullScreenQuad.Draw(deferredEffect.effect);
 
             var rec = new Rectangle(0,0,screenWidth, screenHeight);
-            SpriteBatch.Begin(blendState:BlendState.Opaque);
+
+            SpriteBatch.Begin(blendState: BlendState.Opaque);
 
             SpriteBatch.Draw(colorTarget, Vector2.Zero, rec, Color.White, 0f, Vector2.Zero, 0.25f, SpriteEffects.None, 0f);
-            SpriteBatch.Draw(normalTarget, new Vector2(0, screenHeight- screenHeight/4), rec, Color.White, 0f, Vector2.Zero, 0.25f, SpriteEffects.None, 0f);
-            SpriteBatch.Draw(positionTarget, new Vector2(screenWidth - screenWidth/ 4, 0), rec, Color.White, 0f, Vector2.Zero, 0.25f, SpriteEffects.None, 0f);
+            SpriteBatch.Draw(normalTarget, new Vector2(0, screenHeight - screenHeight / 4), rec, Color.White, 0f, Vector2.Zero, 0.25f, SpriteEffects.None, 0f);
+            SpriteBatch.Draw(positionTarget, new Vector2(screenWidth - screenWidth / 4, 0), rec, Color.White, 0f, Vector2.Zero, 0.25f, SpriteEffects.None, 0f);
             SpriteBatch.Draw(lightTarget, new Vector2(screenWidth - screenWidth / 4, screenHeight - screenHeight / 4), rec, Color.White, 0f, Vector2.Zero, 0.25f, SpriteEffects.None, 0f);
 
             SpriteBatch.End();
-            
+
             SpriteBatch.Begin();
-            SpriteBatch.DrawString(Font,"Motion Blur lvl " + motionBlurIntensity+ " FPS: " + fps, Vector2.Zero, Color.White);
+            var lightsCount = lightsManager.lightsToDraw.Count;
+            SpriteBatch.DrawString(Font,"Motion Blur lvl " + motionBlurIntensity+ " FPS: " + fps+" LC "+ lightsCount + " "+ rayS , Vector2.Zero, Color.White);
             SpriteBatch.End();
 
+            deferredEffect.SetPrevView(camera.view);
+            deferredEffect.SetPrevProjection(camera.projection);
 
 
         }
@@ -390,11 +446,8 @@ namespace SpaceKarts
         }
         void drawTrack()
         {
-            if(bloomEnabled)
-                basicModelEffect.SetTech("colorTex_lightEn_bloomEn");
-            else
-                basicModelEffect.SetTech("colorTex_lightEn");
-
+            basicModelEffect.SetTech("color_tex");
+            basicModelEffect.SetLightEnabled(true);
             //basicModelEffect.effect.Parameters["tiling"].SetValue(Vector2.One * 1f);
             basicModelEffect.SetKA(0.2f);
             basicModelEffect.SetKD(0.7f);
@@ -464,19 +517,19 @@ namespace SpaceKarts
                 foreach (var meshPart in mesh.MeshParts)
                     meshPart.Effect = e;
         }
-        //void drawPlane()
-        //{
-
-
-        //    foreach (var mesh in plane.Meshes)
-        //    {
-        //        var w = mesh.ParentBone.Transform * Matrix.CreateScale(0.01f) * Matrix.CreateTranslation(0, 0, 0);
-        //        basicModelEffect.SetWorld(w);
-        //        basicModelEffect.SetInverseTransposeWorld(Matrix.Invert(Matrix.Transpose(w)));
-        //        //basicModelEffect.SetInverseTransposeWorld(w);
-        //        mesh.Draw();
-        //    }
-        //}
+        void drawPlane()
+        {
+            basicModelEffect.SetLightEnabled(true);
+            basicModelEffect.SetTech("color_solid");
+            basicModelEffect.SetColor(Color.Gray.ToVector3());
+            foreach (var mesh in plane.Meshes)
+            {
+                var w = mesh.ParentBone.Transform * Matrix.CreateScale(1f) * Matrix.CreateTranslation(0, 0, 0);
+                basicModelEffect.SetWorld(w);
+                basicModelEffect.SetInverseTransposeWorld(Matrix.Invert(Matrix.Transpose(w)));
+                mesh.Draw();
+            }
+        }
     }
     public enum State
     {
@@ -485,99 +538,5 @@ namespace SpaceKarts
         PAUSE,
         OPTIONS
     }
-    //public class UDPClient
-    //{
-    //    UDPClient socket;
-    //    IPEndPoint ep;
 
-    //    public UDPClient(IPAddress address, int port)
-    //    {
-    //        ep = new IPEndPoint(address, port);
-    //    }
-
-    //    public void StartMessageLoop()
-    //    {
-    //        _ = Task.Run(async () =>
-    //        {
-    //            try
-    //            {
-    //                SocketReceiveMessageFromResult res;
-    //                while (true)
-    //                {
-    //                    res = await _socket.ReceiveMessageFromAsync(_buffer_recv_segment, SocketFlags.None, _ep);
-    //                    Debug.WriteLine($"UDP: {Encoding.UTF8.GetString(_buffer_recv,0,res.ReceivedBytes)}");
-    //                }
-    //            }
-    //            catch (Exception ex)
-    //            {
-    //                Debug.WriteLine(ex.ToString());
-    //            }
-    //        });
-    //    }
-    //    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    //    public struct ShakePacket
-    //    {
-    //        public UInt16 id;
-    //    }
-    //    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    //    public struct GameDataPacket
-    //    {
-    //        public UInt16 id;
-    //        public Vector3 position;
-    //    }
-    //    public async Task Send(byte[] data)
-    //    {
-    //        try 
-    //        {
-    //            var s = new ArraySegment<byte>(data);
-    //            Debug.WriteLine("UDP send");
-    //            await _socket.SendToAsync(s, SocketFlags.None, _ep);
-    //            Debug.WriteLine("UDP awaited");
-    //        }
-    //        catch (Exception ex)
-    //        {
-    //            Debug.WriteLine(ex.ToString()); 
-    //        }
-            
-    //    }
-    //    public byte[] createGameDataPacket(GameDataPacket gdp)
-    //    {
-    //        byte[] buffer = new byte[Marshal.SizeOf(gdp) + 2];
-    //        byte[] type = BitConverter.GetBytes((UInt16)1);
-    //        byte[] data = GameDataPacketToByteArray(gdp);
-
-    //        Array.Copy(type, 0, buffer, 0, 2);
-    //        Array.Copy(data, 0, buffer, 2, data.Length);
-
-    //        return buffer;
-    //    }
-    //    public byte[] createHandShakeDataPacket(ShakePacket sp)
-    //    {
-    //        byte[] buffer = new byte[Marshal.SizeOf(sp) + 2];
-    //        byte[] type = BitConverter.GetBytes((UInt16)0);
-    //        byte[] data = ShakePacketToByteArray(sp);
-
-    //        Array.Copy(type, 0, buffer, 0, 2);
-    //        Array.Copy(data, 0, buffer, 2, data.Length);
-
-    //        return buffer;
-    //    }
-
-    //    public byte[] GameDataPacketToByteArray(GameDataPacket packet)
-    //    {
-    //        byte[] buffer = new byte[Marshal.SizeOf(packet)];
-
-    //        MemoryMarshal.Write(buffer, ref packet);
-
-    //        return buffer;
-    //    }
-    //    public byte[] ShakePacketToByteArray(ShakePacket packet)
-    //    {
-    //        byte[] buffer = new byte[Marshal.SizeOf(packet)];
-
-    //        MemoryMarshal.Write(buffer, ref packet);
-
-    //        return buffer;
-    //    }
-    //}
 }

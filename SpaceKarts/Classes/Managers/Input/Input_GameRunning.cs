@@ -66,10 +66,10 @@ namespace SpaceKarts.Managers
                 {
                     keysDown.Add(keyMappings.Debug3);
 
-                    if (game.motionBlurIntensity < 10)
+                    if (game.motionBlurIntensity < 30)
                         game.motionBlurIntensity++;
                     else
-                        game.motionBlurIntensity = 1;
+                        game.motionBlurIntensity = 5;
                 }
             }
             if (keyMappings.Debug0.IsDown())
@@ -81,8 +81,17 @@ namespace SpaceKarts.Managers
                     camera.isFree = !camera.isFree;
                 }
             }
+            if (keyMappings.Debug9.IsDown())
+            {
+                if (!keysDown.Contains(keyMappings.Debug9))
+                {
+                    keysDown.Add(keyMappings.Debug9);
 
-            if(camera.isFree)
+                    game.Graphics.SynchronizeWithVerticalRetrace = !game.Graphics.SynchronizeWithVerticalRetrace;
+                    game.Graphics.ApplyChanges();
+                }
+            }
+            if (camera.isFree)
             {
                 if (keyMappings.Accelerate.IsDown() || keyMappings.AccelerateAlt.IsDown())
                 {

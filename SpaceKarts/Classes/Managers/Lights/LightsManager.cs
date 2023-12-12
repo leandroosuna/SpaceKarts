@@ -63,11 +63,27 @@ namespace SpaceKarts.Managers
         }
         public void DrawLightGeo()
         {
-            lightsToDraw.ForEach(l => l.DrawLightGeo());            
+            lightsToDraw.ForEach(l => {
+                if (l.hasLightGeo && game.camera.frustumContains(l.geoCollider))
+                    l.DrawLightGeo();
+                });            
         }
         public void register(LightVolume volume)
         { 
             lights.Add(volume);
+        }
+
+        public (bool,Vector3) RayIntersects(Ray ray)
+        {
+            foreach(var l in lightsToDraw)
+            {
+                if(!l.geoCollider.Intersects(ray).Equals(ContainmentType.Disjoint))
+                {
+                    return (true,l.position);
+                }
+                
+            }
+            return (false, Vector3.Zero);
         }
     }
 }

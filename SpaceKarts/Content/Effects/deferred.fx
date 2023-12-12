@@ -3,104 +3,21 @@
 #include "draw.fxh"
 #include "lightUtil.fxh"
 #include "blur.fxh"
+#include "post.fxh"
+#include "deferred_head.fxh"
 
-float4x4 world;
-float4x4 view;
-float4x4 projection;
-
-
-float2 screenSize;
-float radius;
-
-struct PVSI
-{
-    float4 Position : POSITION;
-    float2 TexCoord : TEXCOORD;
-};
-struct PVSO
-{
-    float4 Position : SV_POSITION;
-    float2 TexCoord : TEXCOORD;
-};
-struct PSO
-{
-    float4 color : COLOR0;
-    float4 blurH : COLOR1;
-    float4 blurV : COLOR2;
-};
-
-texture colorMap;
-sampler colorSampler = sampler_state
-{
-    Texture = (colorMap);
-    AddressU = CLAMP;
-    AddressV = CLAMP;
-    MagFilter = LINEAR;
-    MinFilter = LINEAR;
-    Mipfilter = LINEAR;
-};
-texture normalMap;
-sampler normalMapSampler = sampler_state
-{
-    Texture = (normalMap);
-    AddressU = CLAMP;
-    AddressV = CLAMP;
-    MagFilter = LINEAR;
-    MinFilter = LINEAR;
-    Mipfilter = LINEAR;
-};
-
-texture positionMap;
-sampler positionMapSampler = sampler_state
-{
-    Texture = (positionMap);
-    AddressU = CLAMP;
-    AddressV = CLAMP;
-    MagFilter = LINEAR;
-    MinFilter = LINEAR;
-    Mipfilter = LINEAR;
-};
-texture prevPositionMap;
-sampler prevPositionMapSampler = sampler_state
-{
-    Texture = (prevPositionMap);
-    AddressU = CLAMP;
-    AddressV = CLAMP;
-    MagFilter = LINEAR;
-    MinFilter = LINEAR;
-    Mipfilter = LINEAR;
-};
-texture lightMap;
-sampler lightMapSampler = sampler_state
-{
-    Texture = (lightMap);
-    AddressU = CLAMP;
-    AddressV = CLAMP;
-    MagFilter = LINEAR;
-    MinFilter = LINEAR;
-    Mipfilter = LINEAR;
-};
-texture bloomFilter;
-sampler bloomFilterSampler = sampler_state
-{
-    Texture = (bloomFilter);
-    AddressU = CLAMP;
-    AddressV = CLAMP;
-    MagFilter = POINT;
-    MinFilter = POINT;
-    Mipfilter = POINT;
-};
 PVSO PostVS(PVSI input)
 {
     PVSO output;
     output.Position = input.Position;
+    output.Clip = input.Position;
     output.TexCoord = input.TexCoord;
     return output;
 }
 
 PVSO PointLightVS(PVSI input)
 {
-    PVSO output;
+    PVSO output = (PVSO)0;
     float4 worldPosition = mul(input.Position, world);
     float4 viewPosition = mul(worldPosition, view);
     float4 screenPos = mul(viewPosition, projection);
@@ -131,8 +48,9 @@ float4 TypePS(PVSO input) : COLOR
     float type = tex2D(normalMapSampler, input.TexCoord).a;
     return float4(type, type, type, 1);
 }
-float4 AmbientLightPS(PVSO input) : COLOR
+PSO AmbientLightPS(PVSO input)
 {
+    PSO output = (PSO)0;
     float4 colorRaw = tex2D(colorSampler, input.TexCoord);
     float3 color = colorRaw.rgb;
     float KD = colorRaw.a;
@@ -141,7 +59,8 @@ float4 AmbientLightPS(PVSO input) : COLOR
     
     if (KD == 0.0 )
     {
-        return float4(1,1,1, 1);
+        output.color = float4(1,1,1, 1);
+        return output;
     }
     
     float KS = normalRaw.a;
@@ -150,8 +69,10 @@ float4 AmbientLightPS(PVSO input) : COLOR
     
     float3 normal = normalize((normalRaw.rgb * 2.0) - 1);
     float3 worldPos = worldRaw.rgb;
-    
-    return float4(getPixelAmbient(worldPos, normal, KD, KS, shininess), 1);
+    float dist = distance(cameraPosition, worldPos);
+    output.color = float4(getPixelAmbient(worldPos, normal, KD, KS, shininess), 1);
+    return output;
+
 }
 static const int kernel_r = 6;
 static const int kernel_size = 13;
@@ -162,23 +83,24 @@ static const float Kernel[kernel_size] =
 
 PSO AmbientLightBPS(PVSO input)
 {
-    float4 prev = AmbientLightPS(input);
+    PSO prev = AmbientLightPS(input);
     PSO output;
-    output.color = prev;
+    output.color = prev.color;
     
-    float4 hColor = float4(0, 0, 0, 1);
-    float4 vColor = float4(0, 0, 0, 1);
+    float3 hColor = float3(0, 0, 0);
+    float3 vColor = float3(0, 0, 0);
+    
     
     for (int i = 0; i < kernel_size; i++)
     {
         float2 scaledTextureCoordinatesH = input.TexCoord + float2((float) (i - kernel_r) / screenSize.x, 0);
         float2 scaledTextureCoordinatesV = input.TexCoord + float2(0, (float) (i - kernel_r) / screenSize.y);
-        hColor += tex2D(bloomFilterSampler, scaledTextureCoordinatesH) * Kernel[i];
-        vColor += tex2D(bloomFilterSampler, scaledTextureCoordinatesV) * Kernel[i];
+        hColor += tex2D(bloomFilterSampler, scaledTextureCoordinatesH).rgb * Kernel[i];
+        vColor += tex2D(bloomFilterSampler, scaledTextureCoordinatesV).rgb * Kernel[i];
     }
     
-    output.blurH = hColor;
-    output.blurV = vColor;
+    output.blurH = float4(hColor, 1);
+    output.blurV = float4(vColor, 1);
     return output;
 }
 float sqr(float x)
@@ -240,75 +162,24 @@ PSO PointLightBPS(PVSO input)
     output.blurV = float4(0, 0, 0, 1);
     return output;
 }
-texture blurH;
-sampler2D blurHSampler = sampler_state
-{
-    Texture = (blurH);
-    MagFilter = Linear;
-    MinFilter = Linear;
-    AddressU = Clamp;
-    AddressV = Clamp;
-};
-texture blurV;
-sampler2D blurVSampler = sampler_state
-{
-    Texture = (blurV);
-    MagFilter = Linear;
-    MinFilter = Linear;
-    AddressU = Clamp;
-    AddressV = Clamp;
-};
+
 
 float4 IntegrateBPS(PVSO input) : COLOR
 {
-    float4 colorRaw = tex2D(colorSampler, input.TexCoord);
-    float3 color = colorRaw.rgb;
-    float4 lightRaw = tex2D(lightMapSampler, input.TexCoord);
-    float3 light = lightRaw.rgb;
+    float4 color = tex2D(colorSampler, input.TexCoord);
+    float4 light = tex2D(lightMapSampler, input.TexCoord);
     
-    float4 blurHColor = tex2D(blurHSampler, input.TexCoord);
-    float4 blurVColor = tex2D(blurVSampler, input.TexCoord);
-    
-    return float4(color*0.8 * light, 1) + blurHColor * 1.2 + blurVColor * 1.2;
+    return processBloom(color.rgb, color.a, light.rgb, input.TexCoord);
+        
 }
-int motionBlurIntensity;
+
 float4 IntegrateMBPS(PVSO input) : COLOR
 {
-    float3 baseColor = tex2D(colorSampler, input.TexCoord).rgb;
     float3 light = tex2D(lightMapSampler, input.TexCoord).rgb;
-
-    float3 position = tex2D(positionMapSampler, input.TexCoord).xyz;
-    float3 prevPosition = tex2D(prevPositionMapSampler, input.TexCoord).xyz;
     
-    float4 screenPos = mul(mul(float4(position, 1), view), projection);
-    float2 screenPos2D = screenPos.xy / screenPos.z;
-    float4 prevScreenPos = mul(mul(float4(prevPosition, 1), view), projection);
-    float2 prevScreenPos2D = prevScreenPos.xy / prevScreenPos.z;
-    
-    float2 velocity = (screenPos2D - prevScreenPos2D);
-    velocity.y = -velocity.y;
-    /*
-    if (velocity.x == screenPos2D.x && velocity.y == screenPos2D.y)
-        return float4(1, 0, 0, 1);
-    if(velocity.x == screenPos2D.x && velocity.y == screenPos2D.y)
-        return float4(1, 0, 1, 1);
-    if (velocity.x == 0 && velocity.y == 0)
-        return float4(1,0, 0, 1);
-    return float4(velocity.x, velocity.y,0,1);
-    */
-    
-    
-    float2 tex = input.TexCoord;
-    tex += velocity;
-    
-    for (int i = 1; i < motionBlurIntensity; ++i, tex += velocity)
-    {
-	    float3 currentColor = tex2D(colorSampler, tex).rgb;
-	    baseColor += currentColor;
-    }
-    float3 finalColor = (baseColor / motionBlurIntensity) * light;
-    return float4(finalColor, 1);
+    return processMotionBlur(colorSampler, light, input.TexCoord, view, projection);
 }
+
 float4 IntegratePS(PVSO input) : COLOR
 {
     
@@ -379,20 +250,22 @@ technique point_light
         PixelShader = compile PS_SHADERMODEL PointLightPS();
     }
 }
-technique ambient_light_bloom
-{
-    pass P0
-    {
-        VertexShader = compile VS_SHADERMODEL PostVS();
-        PixelShader = compile PS_SHADERMODEL AmbientLightBPS();
-    }
-}
+
 technique ambient_light
 {
     pass P0
     {
         VertexShader = compile VS_SHADERMODEL PostVS();
         PixelShader = compile PS_SHADERMODEL AmbientLightPS();
+    }
+}
+
+technique ambient_light_bloom
+{
+    pass P0
+    {
+        VertexShader = compile VS_SHADERMODEL PostVS();
+        PixelShader = compile PS_SHADERMODEL AmbientLightBPS();
     }
 }
 technique integrate
