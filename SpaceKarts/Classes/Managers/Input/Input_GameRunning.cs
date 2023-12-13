@@ -93,7 +93,7 @@ namespace SpaceKarts.Managers
             }
             if (camera.isFree)
             {
-                if (keyMappings.Accelerate.IsDown() || keyMappings.AccelerateAlt.IsDown())
+                if (keyMappings.Accelerate.IsDown() )
                 {
                     
                 }
@@ -104,27 +104,27 @@ namespace SpaceKarts.Managers
             var dirChanged = false;
             var dir = Vector3.Zero;
 
-            if (keyMappings.Accelerate.IsDown() || keyMappings.AccelerateAlt.IsDown())
+            if (keyMappings.Accelerate.IsDown())
             {
                 dir += frontNoY;
                 dirChanged = true;
             }
-            if (keyMappings.Brake.IsDown() || keyMappings.BrakeAlt.IsDown())
+            if (keyMappings.Brake.IsDown())
             {
                 dir -= frontNoY;
                 dirChanged = true;
             }
-            if (keyMappings.TurnLeft.IsDown() || keyMappings.TurnLeftAlt.IsDown())
+            if (keyMappings.TurnLeft.IsDown())
             {
                 dir -= rightNoY;
                 dirChanged = true;
             }
-            if (keyMappings.TurnRight.IsDown() || keyMappings.TurnRight.IsDown())
+            if (keyMappings.TurnRight.IsDown())
             {
                 dir += rightNoY;
                 dirChanged = true;
             }
-            if(keyMappings.Jump.IsDown() || keyMappings.JumpAlt.IsDown())
+            if(keyMappings.Jump.IsDown())
             {
                 dir += Vector3.Up;
                 dirChanged = true;

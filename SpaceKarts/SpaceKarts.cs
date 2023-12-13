@@ -19,6 +19,20 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Riptide.Utils;
 using Riptide;
+using BepuPhysics;
+using BepuUtilities.Memory;
+using SpaceKarts.Physics;
+using System.Numerics;
+using BepuPhysics.Collidables;
+
+using Vector3 = Microsoft.Xna.Framework.Vector3;
+using Vector2 = Microsoft.Xna.Framework.Vector2;
+using Matrix = Microsoft.Xna.Framework.Matrix;
+
+using NumericVector3 = System.Numerics.Vector3;
+using NumericVector2 = System.Numerics.Vector2;
+using System.Reflection;
+using BepuUtilities;
 
 namespace SpaceKarts
 {
@@ -67,6 +81,11 @@ namespace SpaceKarts
         public InputManager currentInputManager;
         InputManager inputRun;
         InputManager inputMainMenu;
+
+        public Simulation Simulation;
+        public BufferPool BufferPool; 
+        public SimpleThreadDispatcher ThreadDispatcher;
+
 
         public State gameState;
 
@@ -120,8 +139,13 @@ namespace SpaceKarts
 
         }
         
+        float gravity = 10;
+        BodyHandle boxHandle;
+        Matrix boxWorld;
         protected override void Initialize()
         {
+            
+
             var viewport = GraphicsDevice.Viewport;
             screenCenter = new Point(viewport.Width / 2, viewport.Height / 2);
             if (!Graphics.IsFullScreen)
@@ -146,7 +170,35 @@ namespace SpaceKarts
 
         protected override void LoadContent()
         {
-            
+            BufferPool = new BufferPool();
+
+            var targetThreadCount = Math.Max(1,
+                Environment.ProcessorCount > 4 ? Environment.ProcessorCount - 2 : Environment.ProcessorCount - 1);
+            ThreadDispatcher = new SimpleThreadDispatcher(targetThreadCount);
+
+            var properties = new CollidableProperty<CarBodyProperties>();
+            Simulation = Simulation.Create(BufferPool,
+                new CarCallbacks() { Properties = properties },
+                new PoseIntegratorCallbacks(new NumericVector3(0, -gravity, 0)),
+                new SolveDescription(6, 1));
+
+            //floor collider
+            var floorHeight = 4;
+            Simulation.Statics.Add(new StaticDescription(new NumericVector3(0, -floorHeight/2f, 0),
+               Simulation.Shapes.Add(new Box(2000, floorHeight, 2000))));
+
+            var radius = 2;
+
+            var boxShape = new Box(radius, radius, radius);
+            var boxInertia = boxShape.ComputeInertia(1f);
+            var boxIndex = Simulation.Shapes.Add(boxShape);
+            var position = new NumericVector3(0, 10, 0);
+
+            var bodyDescription = BodyDescription.CreateDynamic(position, boxInertia,
+                new CollidableDescription(boxIndex, 0.1f), new BodyActivityDescription(0.01f));
+
+            boxHandle = Simulation.Bodies.Add(bodyDescription);
+
 
             Font = Content.Load<SpriteFont>(ContentFolderFonts + "tahoma/15");
             deferredEffect = new DeferredEffect("deferred");
@@ -241,8 +293,10 @@ namespace SpaceKarts
             //engineInstance.Play();
         }
         float deltaTimeU;
+        bool canImpulse = true;
         protected override void Update(GameTime gameTime)
         {
+            Simulation.Timestep(1 / 171f, ThreadDispatcher);
 
             deltaTimeU = (float)gameTime.ElapsedGameTime.TotalSeconds;
             currentInputManager.Update(deltaTimeU);
@@ -259,7 +313,33 @@ namespace SpaceKarts
             audioListener.Forward = camera.frontDirection;
             audioListener.Up = camera.upDirection;
 
-           
+
+            var refe = Simulation.Bodies.GetBodyReference(boxHandle);
+
+            if (Keyboard.GetState().IsKeyDown(Keys.B) && canImpulse)
+            {
+                canImpulse = false;
+                if (!refe.Awake)
+                    refe.Awake = true;
+                refe.ApplyImpulse(new NumericVector3(0.5f, 6f, 0), new NumericVector3(-0.5f,0,-0.5f));
+                //refe.ApplyImpulse(new NumericVector3(30f, 0, 0), new NumericVector3(-0.5f, 0, -0.5f));
+                
+                //System.Diagnostics.Debug.WriteLine("impulse");
+            }
+            if (Keyboard.GetState().IsKeyUp(Keys.B))
+                canImpulse = true;
+            
+
+            var pose = Simulation.Bodies.GetBodyReference(boxHandle).Pose;
+            var position = pose.Position;
+            var quaternion = pose.Orientation;
+            boxWorld =
+                Matrix.CreateScale(.5f) *
+                Matrix.CreateFromQuaternion(new Microsoft.Xna.Framework.Quaternion(quaternion.X, quaternion.Y, quaternion.Z,
+                    quaternion.W)) * 
+                Matrix.CreateTranslation(new Vector3(position.X, position.Y, position.Z));
+
+            boxPositionStr = "BP " + (int)position.X + "," + (int)position.Y + "," + (int)position.Z;
 
             base.Update(gameTime);
         }
@@ -267,7 +347,8 @@ namespace SpaceKarts
         double frameTime;
         int fps;
         float deltaTimeD;
-        
+
+        string boxPositionStr;
         protected override void Draw(GameTime gameTime)
         {
             deltaTimeD = (float)gameTime.ElapsedGameTime.TotalSeconds;
@@ -278,7 +359,7 @@ namespace SpaceKarts
                 fps = (int)(1 / deltaTimeD);
                 frameTime = deltaTimeD * 1000;
             }
-
+            
             switch (gameState)
             {
                 case State.MAIN_MENU: DrawMenu(deltaTimeD); break;
@@ -342,6 +423,7 @@ namespace SpaceKarts
             GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
 
             //drawTrack();
+            drawBox();
             drawPlane();
             ShipManager.Draw(deltaTime);
             lightsManager.DrawLightGeo();
@@ -383,6 +465,7 @@ namespace SpaceKarts
             {
                 deferredEffect.effect.Parameters["motionBlurIntensity"]?.SetValue(motionBlurIntensity);
                 deferredEffect.effect.Parameters["prevPositionMap"]?.SetValue(prevPositionTarget);
+
 
                 deferredEffect.SetTech("integrate_motion_blur");
                 deferredEffect.effect.Parameters["bloomPassBefore"]?.SetValue(false);
@@ -427,7 +510,8 @@ namespace SpaceKarts
 
             SpriteBatch.Begin();
             var lightsCount = lightsManager.lightsToDraw.Count;
-            SpriteBatch.DrawString(Font,"Motion Blur lvl " + motionBlurIntensity+ " FPS: " + fps+" LC "+ lightsCount + " "+ rayS , Vector2.Zero, Color.White);
+            //SpriteBatch.DrawString(Font,"Motion Blur lvl " + motionBlurIntensity+ " FPS: " + fps+" LC "+ lightsCount + " "+ rayS , Vector2.Zero, Color.White);
+            SpriteBatch.DrawString(Font, "FPS " + fps + " " + boxPositionStr, Vector2.Zero, Color.White);
             SpriteBatch.End();
 
             deferredEffect.SetPrevView(camera.view);
@@ -517,6 +601,21 @@ namespace SpaceKarts
                 foreach (var meshPart in mesh.MeshParts)
                     meshPart.Effect = e;
         }
+        void drawBox()
+        {
+            basicModelEffect.SetLightEnabled(true);
+            basicModelEffect.SetTech("color_solid");
+            basicModelEffect.SetColor(Color.DarkCyan.ToVector3());
+
+            foreach (var mesh in cube.Meshes)
+            {
+                //var w = mesh.ParentBone.Transform * Matrix.CreateScale(0.01f) * Matrix.CreateTranslation(0, 0, 0);
+                var w = boxWorld;
+                basicModelEffect.SetWorld(w);
+                basicModelEffect.SetInverseTransposeWorld(Matrix.Invert(Matrix.Transpose(w)));
+                mesh.Draw();
+            }
+        }
         void drawPlane()
         {
             basicModelEffect.SetLightEnabled(true);
@@ -530,6 +629,14 @@ namespace SpaceKarts
                 mesh.Draw();
             }
         }
+        protected override void UnloadContent()
+        {
+            Simulation.Dispose();
+
+            BufferPool.Clear();
+
+            ThreadDispatcher.Dispose();
+        }
     }
     public enum State
     {
@@ -538,5 +645,5 @@ namespace SpaceKarts
         PAUSE,
         OPTIONS
     }
-
+    
 }
