@@ -5,6 +5,7 @@ float3 lightSpecularColor; // Light's Specular Color
 
 float3 lightPosition;
 float3 cameraPosition; // Camera position
+/*
 float KA;
 float KD;
 float KS;
@@ -23,7 +24,7 @@ float3 getPixelColor(float3 baseColor, float3 worldPos, float3 normal)
 	float3 specularLight = sign(NdotL) * KS * lightSpecularColor * pow(saturate(NdotH), shininess);
 	return saturate(lightAmbientColor * KA + diffuseLight) * baseColor + specularLight;
 }
-
+*/
 float3 getPixelAmbient(float3 worldPos, float3 normal, float KD, float KS, float shininess)
 {
     float3 output;

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
+using SpaceKarts.Managers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -64,8 +65,14 @@ namespace SpaceKarts.Cameras
         {
             var inputManager = game.currentInputManager;
             mouseDelta = inputManager.mouseDelta;
-            position = inputManager.playerPosition;
+            var ship = ShipManager.shipList[0];
 
+            position = inputManager.playerPosition;
+            //position = ship.position - ship.moveDirection * 10 + new Vector3(0,10,0) ;
+
+            //frontDirection = Vector3.Normalize(ship.position - position);
+            //rightDirection = Vector3.Normalize(Vector3.Cross(frontDirection, Vector3.Up));
+            //upDirection = Vector3.Normalize(Vector3.Cross(rightDirection, frontDirection));
             yaw += mouseDelta.X;
             if (yaw < 0)
                 yaw += 360;

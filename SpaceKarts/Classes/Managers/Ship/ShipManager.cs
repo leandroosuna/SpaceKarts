@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework.Audio;
+﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using System;
@@ -28,18 +29,22 @@ namespace SpaceKarts.Managers
             LoadContent(game.Content, game.basicModelEffect.effect);    
 
             shipList = new List<Ship>();
-            shipList.Add(new Ship(game, models[0], colors[7], normal, emissive, engineSound.CreateInstance()));
+            shipList.Add(new Ship(game, models[0], colors[7], normal, emissive, engineSound.CreateInstance(), new Vector3(0, 1.5f, 0), 0f, 0f, true));
             shipsToDraw = new List<Ship>();
         }
         public static void Update(float deltaTime)
         {
-            shipList.ForEach(ship => ship.Update(deltaTime));
+            shipList.ForEach(ship => { if (!ship.isPlayer) ship.Update(deltaTime); });
             shipsToDraw.Clear();
             foreach(var ship in shipList)
             {
                 if(game.camera.frustumContains(ship.boxCollider))
                     shipsToDraw.Add(ship);
             }
+        }
+        public static void PlayerUpdate(float deltaTime, Vector3 pos, Quaternion quat)
+        {
+            shipList[0].ForceUpdate(deltaTime, pos, quat); 
         }
         public static void Draw(float deltaTime)
         {

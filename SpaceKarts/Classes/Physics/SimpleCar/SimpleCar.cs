@@ -6,7 +6,7 @@ using BepuUtilities;
 
 namespace SpaceKarts.Physics 
 { 
-    struct SimpleCar
+    public struct SimpleCar
     {
         public BodyHandle Body;
         public WheelHandles FrontLeftWheel;

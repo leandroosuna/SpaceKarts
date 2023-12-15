@@ -2,7 +2,7 @@
 
 namespace SpaceKarts.Physics
 {
-    struct WheelHandles
+    public struct WheelHandles
     {
         public BodyHandle Wheel;
         public ConstraintHandle SuspensionSpring;

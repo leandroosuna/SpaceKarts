@@ -3,7 +3,7 @@ using BepuPhysics;
 
 namespace SpaceKarts.Physics
 {
-    struct SimpleCarController
+    public struct SimpleCarController
     {
         public SimpleCar Car;
 
@@ -114,13 +114,13 @@ namespace SpaceKarts.Physics
             {
                 newTargetForce = zoom ? ForwardForce * ZoomMultiplier : ForwardForce;
                 newTargetSpeed = targetSpeedFraction * (zoom ? ForwardSpeed * ZoomMultiplier : ForwardSpeed);
-                allWheels = false;
+                allWheels = true;
             }
             else if (targetSpeedFraction < 0)
             {
                 newTargetForce = zoom ? BackwardForce * ZoomMultiplier : BackwardForce;
                 newTargetSpeed = targetSpeedFraction * (zoom ? BackwardSpeed * ZoomMultiplier : BackwardSpeed);
-                allWheels = false;
+                allWheels = true;
             }
             else
             {
@@ -134,10 +134,11 @@ namespace SpaceKarts.Physics
                 previousTargetForce = newTargetForce;
                 Car.SetSpeed(simulation, Car.FrontLeftWheel, newTargetSpeed, newTargetForce);
                 Car.SetSpeed(simulation, Car.FrontRightWheel, newTargetSpeed, newTargetForce);
+                
                 if (allWheels)
                 {
-                    Car.SetSpeed(simulation, Car.BackLeftWheel, newTargetSpeed, newTargetForce);
-                    Car.SetSpeed(simulation, Car.BackRightWheel, newTargetSpeed, newTargetForce);
+                    Car.SetSpeed(simulation, Car.BackLeftWheel, newTargetSpeed, newTargetForce * 0.2f);
+                    Car.SetSpeed(simulation, Car.BackRightWheel, newTargetSpeed, newTargetForce * 0.2f);
                 }
                 else
                 {

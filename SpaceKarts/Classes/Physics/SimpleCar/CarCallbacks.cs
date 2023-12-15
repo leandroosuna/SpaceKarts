@@ -8,7 +8,7 @@ using BepuPhysics.Constraints;
 namespace SpaceKarts.Physics
 {
 
-    struct CarBodyProperties
+    public struct CarBodyProperties
     {
         public SubgroupCollisionFilter Filter;
         public float Friction;

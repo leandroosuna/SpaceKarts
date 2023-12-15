@@ -81,6 +81,24 @@ namespace SpaceKarts.Managers
                     camera.isFree = !camera.isFree;
                 }
             }
+            if (keyMappings.Debug7.IsDown())
+            {
+                if (!keysDown.Contains(keyMappings.Debug7))
+                {
+                    keysDown.Add(keyMappings.Debug7);
+
+                    game.debugGizmos = !game.debugGizmos;
+                }
+            }
+            if (keyMappings.Debug8.IsDown())
+            {
+                if (!keysDown.Contains(keyMappings.Debug8))
+                {
+                    keysDown.Add(keyMappings.Debug8);
+
+                    game.debugRTs = !game.debugRTs;
+                }
+            }
             if (keyMappings.Debug9.IsDown())
             {
                 if (!keysDown.Contains(keyMappings.Debug9))
