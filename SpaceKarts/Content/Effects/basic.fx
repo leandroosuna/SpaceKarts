@@ -1,8 +1,6 @@
 ﻿#define VS_SHADERMODEL vs_5_0
 #define PS_SHADERMODEL ps_5_0
 
-#include "lightUtil.fxh"
-
 float4x4 world;
 float4x4 view;
 float4x4 projection;
@@ -11,6 +9,9 @@ float4x4 inverseTransposeWorld;
 float3 color;
 float filter;
 int lightEnabled;
+
+float KA, KD, KS, shininess;
+
 struct VertexShaderInput
 {
     float4 Position : POSITION;
@@ -91,10 +92,17 @@ PSO ColorPS(VertexShaderOutput input)
   
     float3 normal = (n + 1.0) * 0.5;
 
-    output.color = float4(color, KD * lightEnabled);
+    if(lightEnabled)
+    {
+        output.color = float4(color, KD);
+    }
+    else
+    {
+        output.color = float4(color, 0);
+    }
     output.normal = float4(normal, KS);
     output.position = float4(input.WorldPos.xyz, shininess);
-    output.bloomFilter = float4(color * (1 - lightEnabled), input.Depth);
+    output.bloomFilter = float4(color * (1 - lightEnabled), 1);
     return output;
 }
 

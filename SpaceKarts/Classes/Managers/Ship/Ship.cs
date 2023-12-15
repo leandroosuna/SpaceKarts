@@ -22,6 +22,7 @@ namespace SpaceKarts.Managers
 
         public Vector3 position;
         public Vector3 frontDirection;
+        public Vector3 moveDirection;
         public float pitch;
         public float yaw;
         public float roll = 0;
@@ -31,6 +32,9 @@ namespace SpaceKarts.Managers
         public BoundingBox boxCollider;
         SpaceKarts game;
         BasicModelEffect effect;
+        public bool isPlayer = false;
+
+        Matrix scale, rotation, translation;
         public Ship(SpaceKarts game, Model model, Texture2D color, Texture2D normal, Texture2D emmisive, SoundEffectInstance engineSound) : 
             this(game, model, color, normal, emmisive, engineSound, new Vector3(0,1.5f,0), 0f, 0f)
         {
@@ -54,7 +58,31 @@ namespace SpaceKarts.Managers
             emitter = new AudioEmitter();
             emitter.Velocity = Vector3.One;
             boxCollider = new BoundingBox(position - new Vector3(size), position + new Vector3(size));
+
         }
+
+        public Ship(SpaceKarts game, Model model, Texture2D color, Texture2D normal, Texture2D emmisive, SoundEffectInstance engineSound, Vector3 position, float pitch, float yaw, bool isPlayer)
+        {
+            this.model = model;
+            this.colorTex = color;
+            this.normalTex = normal;
+            this.emissiveTex = emmisive;
+            this.engineSound = engineSound;
+            this.position = position;
+            this.pitch = pitch;
+            this.yaw = yaw;
+            this.game = game;
+            engineSound.IsLooped = true;
+            effect = game.basicModelEffect;
+            enginePitch = 0;
+            emitter = new AudioEmitter();
+            emitter.Velocity = Vector3.One;
+            boxCollider = new BoundingBox(position - new Vector3(size), position + new Vector3(size));
+            this.isPlayer = isPlayer;
+
+            scale = Matrix.CreateScale(0.005f);
+        }
+        Vector3 lastPosition = Vector3.Zero;
         public void Update(float deltaTime)
         {
             if (enginePitch > 0f)
@@ -63,19 +91,42 @@ namespace SpaceKarts.Managers
                 if (enginePitch < 0f)
                     enginePitch = 0f;
             }
+            
+            //checkKeyState(deltaTime);
+            calculateDirectionFromYawPitch();
+            
             emitter.Forward = frontDirection;
             emitter.Up = Vector3.Up;
             emitter.Position = position;
             engineSound.Apply3D(game.audioListener, emitter);
             engineSound.Pitch = enginePitch;
 
-            //checkKeyState(deltaTime);
-            calculateDirectionFromYawPitch();
-
             boxCollider.Min = position - Vector3.One * size;
             boxCollider.Max = position + Vector3.One * size;
             
 
+        }
+
+        public void ForceUpdate(float deltaTime, Vector3 pos, Quaternion quat)
+        {
+            lastPosition = position;
+            position = pos;
+            moveDirection = Vector3.Normalize(position - lastPosition);
+            if (moveDirection.Length() < 0.001f)
+                moveDirection = new Vector3(1,0,0);
+
+            rotation = Matrix.CreateFromQuaternion(quat);
+            translation = Matrix.CreateTranslation(pos);
+            frontDirection = rotation.Forward;
+
+            emitter.Forward = frontDirection;
+            emitter.Up = Vector3.Up;
+            emitter.Position = position;
+            engineSound.Apply3D(game.audioListener, emitter);
+            engineSound.Pitch = enginePitch;
+
+            boxCollider.Min = position - Vector3.One * size;
+            boxCollider.Max = position + Vector3.One * size;
         }
         void checkKeyState(float deltaTime)
         {
@@ -136,8 +187,10 @@ namespace SpaceKarts.Managers
 
             frontDirection = Vector3.Normalize(tempFront);
         }
+        
         public void Draw(float deltaTime)
         {
+             
             effect.SetTech("color_tex_normal_emissive");
 
             effect.SetKA(0.2f);
@@ -150,9 +203,8 @@ namespace SpaceKarts.Managers
             effect.SetNormalTexture(normalTex);
             foreach (var mesh in model.Meshes)
             {
-                var rotation = Matrix.CreateFromYawPitchRoll(MathHelper.ToRadians(yaw), MathHelper.ToRadians(pitch), MathHelper.ToRadians(roll));
-                var world = mesh.ParentBone.Transform * Matrix.CreateScale(0.005f)
-                    * rotation * Matrix.CreateTranslation(position);
+                //var rotation = Matrix.CreateFromYawPitchRoll(MathHelper.ToRadians(yaw), MathHelper.ToRadians(pitch), MathHelper.ToRadians(roll));
+                var world = mesh.ParentBone.Transform * scale * rotation * translation;
                 effect.SetWorld(world);
                 effect.SetInverseTransposeWorld(Matrix.Invert(Matrix.Transpose(world)));
                 
