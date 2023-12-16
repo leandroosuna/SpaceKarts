@@ -28,9 +28,11 @@ using BepuPhysics.Collidables;
 using Vector3 = Microsoft.Xna.Framework.Vector3;
 using Vector2 = Microsoft.Xna.Framework.Vector2;
 using Matrix = Microsoft.Xna.Framework.Matrix;
+using Quaternion = Microsoft.Xna.Framework.Quaternion;
 
 using NumericVector3 = System.Numerics.Vector3;
 using NumericVector2 = System.Numerics.Vector2;
+using NumericQuaternion = System.Numerics.Quaternion;
 using Box = BepuPhysics.Collidables.Box;
 
 using BepuUtilities;
@@ -90,6 +92,7 @@ namespace SpaceKarts
         public SimpleThreadDispatcher ThreadDispatcher;
         public SimpleCarController playerController;
 
+        public Gizmos gizmos;
         public State gameState;
 
         public SpaceKarts(IConfigurationRoot appCfg)
@@ -147,7 +150,7 @@ namespace SpaceKarts
         Matrix boxWorld;
         protected override void Initialize()
         {
-            
+            gizmos = new Gizmos();
 
             var viewport = GraphicsDevice.Viewport;
             screenCenter = new Point(viewport.Width / 2, viewport.Height / 2);
@@ -174,7 +177,7 @@ namespace SpaceKarts
         protected override void LoadContent()
         {
             BufferPool = new BufferPool();
-
+            gizmos.LoadContent(GraphicsDevice);
             var targetThreadCount = Math.Max(1,
                 Environment.ProcessorCount > 4 ? Environment.ProcessorCount - 2 : Environment.ProcessorCount - 1);
             ThreadDispatcher = new SimpleThreadDispatcher(targetThreadCount);
@@ -212,6 +215,13 @@ namespace SpaceKarts
             var wheelInertia = wheelShape.ComputeInertia(0.1f);
             var wheelShapeIndex = Simulation.Shapes.Add(wheelShape);
 
+          
+
+            //floor collider
+            var floorHeight = 4;
+            Simulation.Statics.Add(new StaticDescription(new NumericVector3(0, -floorHeight / 2f, 0),
+               Simulation.Shapes.Add(new Box(2000, floorHeight, 2000))));
+
             const float x = 2f;
             const float y = -0.1f;
             const float frontZ = 1.7f;
@@ -220,20 +230,13 @@ namespace SpaceKarts
             const float wheelBaseLength = frontZ - backZ;
 
 
-            //floor collider
-            var floorHeight = 4;
-            Simulation.Statics.Add(new StaticDescription(new NumericVector3(0, -floorHeight / 2f, 0),
-               Simulation.Shapes.Add(new Box(2000, floorHeight, 2000))));
-
-
-
             playerController = new SimpleCarController(SimpleCar.Create(Simulation, properties, new NumericVector3(0, 10, 0), bodyShapeIndex, bodyInertia, 0.5f, wheelShapeIndex, wheelInertia, 2f,
                 new NumericVector3(-x, y, frontZ), new NumericVector3(x, y, frontZ), new NumericVector3(-x, y, backZ), new NumericVector3(x, y, backZ), new NumericVector3(0, -1, 0), 0.25f,
                 new SpringSettings(5f, 0.7f), QuaternionEx.CreateFromAxisAngle(NumericVector3.UnitZ, MathF.PI * 0.5f)),
                 forwardSpeed: 250, forwardForce: 1000, zoomMultiplier: 2, backwardSpeed: 150, backwardForce: 1000, idleForce: 0.25f, brakeForce: 200, steeringSpeed: 5f, maximumSteeringAngle: MathF.PI * 0.55f,
                 wheelBaseLength: wheelBaseLength, wheelBaseWidth: wheelBaseWidth, ackermanSteering: 1);
 
-
+            
 
             Font = Content.Load<SpriteFont>(ContentFolderFonts + "tahoma/15");
             deferredEffect = new DeferredEffect("deferred");
@@ -359,7 +362,7 @@ namespace SpaceKarts
                 refe.Awake = true;
             timeU += deltaTimeU;
 
-            refe.Pose.Position = new NumericVector3(10f * MathF.Sin(timeU), 0, 10f *MathF.Cos(timeU));
+            //refe.Pose.Position = new NumericVector3(10f * MathF.Sin(timeU), 0, 10f *MathF.Cos(timeU));
             if (Keyboard.GetState().IsKeyDown(Keys.B) && canImpulse)
             {
                 canImpulse = false;
@@ -375,10 +378,9 @@ namespace SpaceKarts
             var position = pose.Position;
             var quaternion = pose.Orientation;
             boxWorld =
-                Matrix.CreateScale(new Vector3(.7f,0.4f, 1.5f)) *
-                Matrix.CreateFromQuaternion(new Microsoft.Xna.Framework.Quaternion(quaternion.X, quaternion.Y, quaternion.Z,
-                    quaternion.W)) *
-                Matrix.CreateTranslation(new Vector3(position.X, position.Y, position.Z));
+                Matrix.CreateScale(new Vector3(1f,1f, 1f)) *
+                Matrix.CreateFromQuaternion(NumQuatToQuat(quaternion)) *
+                Matrix.CreateTranslation(NumV3ToV3(position));
 
             boxPositionStr = "BP " + (int)position.X + "," + (int)position.Y + "," + (int)position.Z;
 
@@ -422,6 +424,8 @@ namespace SpaceKarts
 
             ShipManager.PlayerUpdate(deltaTimeU, car.Position, car.Orientation);
 
+            gizmos.UpdateViewProjection(camera.view, camera.projection);
+
             base.Update(gameTime);
         }
         double time = 0f;
@@ -431,7 +435,7 @@ namespace SpaceKarts
 
         string boxPositionStr;
         public bool debugRTs = false;
-        public bool debugGizmos = false;
+        public bool debugGizmos = true;
         protected override void Draw(GameTime gameTime)
         {
             deltaTimeD = (float)gameTime.ElapsedGameTime.TotalSeconds;
@@ -449,7 +453,65 @@ namespace SpaceKarts
                 case State.RUN: DrawRun(deltaTimeD); break;
             }
 
-            
+            //gizmos.DrawCube(boxWorld, Color.Magenta);
+            if (debugGizmos)
+            {
+                gizmos.DrawCube(new Vector3(0, 5, 0), new Vector3(2, 2, 2),Color.Magenta);
+
+
+                var refe = Simulation.Bodies.GetBodyReference(boxHandle);
+                var pos = refe.Pose.Position;
+                var or = refe.Pose.Orientation;
+                var world = Matrix.CreateScale(2f) 
+                    * Matrix.CreateFromQuaternion(NumQuatToQuat(or))
+                    * Matrix.CreateTranslation(NumV3ToV3(pos));
+
+                gizmos.DrawCube(world, Color.Yellow);
+
+                var car = playerController.Car;
+                refe = Simulation.Bodies.GetBodyReference(car.Body);
+                pos = refe.Pose.Position;
+                or = refe.Pose.Orientation;
+                world = Matrix.CreateScale(4f, 1f, 4.73f)
+                    * Matrix.CreateFromQuaternion(NumQuatToQuat(or))
+                    * Matrix.CreateTranslation(NumV3ToV3(pos));
+                
+                gizmos.DrawCube(world, Color.White);
+
+                refe = Simulation.Bodies.GetBodyReference(car.BackLeftWheel.Wheel);
+                pos = refe.Pose.Position;
+                or = refe.Pose.Orientation;
+                world = Matrix.CreateScale(.4f, .18f, .4f)
+                    * Matrix.CreateFromQuaternion(NumQuatToQuat(or))
+                    * Matrix.CreateTranslation(NumV3ToV3(pos));
+                gizmos.DrawCylinder(world, Color.White);
+                
+                refe = Simulation.Bodies.GetBodyReference(car.BackRightWheel.Wheel);
+                pos = refe.Pose.Position;
+                or = refe.Pose.Orientation;
+                world = Matrix.CreateScale(.4f, .18f, .4f)
+                    * Matrix.CreateFromQuaternion(NumQuatToQuat(or))
+                    * Matrix.CreateTranslation(NumV3ToV3(pos));
+                gizmos.DrawCylinder(world, Color.White);
+                
+                refe = Simulation.Bodies.GetBodyReference(car.FrontLeftWheel.Wheel);
+                pos = refe.Pose.Position;
+                or = refe.Pose.Orientation;
+                world = Matrix.CreateScale(.4f, .18f, .4f)
+                    * Matrix.CreateFromQuaternion(NumQuatToQuat(or))
+                    * Matrix.CreateTranslation(NumV3ToV3(pos));
+                gizmos.DrawCylinder(world, Color.White);
+
+                refe = Simulation.Bodies.GetBodyReference(car.FrontRightWheel.Wheel);
+                pos = refe.Pose.Position;
+                or = refe.Pose.Orientation;
+                world = Matrix.CreateScale(.4f, .18f, .4f)
+                    * Matrix.CreateFromQuaternion(NumQuatToQuat(or))
+                    * Matrix.CreateTranslation(NumV3ToV3(pos));
+                gizmos.DrawCylinder(world, Color.White);
+
+                gizmos.Draw();
+            }
             base.Draw(gameTime);
         }
 
@@ -733,12 +795,12 @@ namespace SpaceKarts
         //            var offset = 0;
         //            var startIndex = 0;
         //            var elementCount = 4;
-                    
+
         //            meshPart.VertexBuffer.GetData(offset, readData, startIndex, elementCount, vertexStride);
-                    
+
         //            for (int i = 0; i * 3< meshPart.IndexBuffer.IndexCount;i++)
         //            {
-                        
+
         //                var bu = (var data, )
         //            }
         //        }
@@ -758,6 +820,18 @@ namespace SpaceKarts
 
         //}
 
+        public static Vector3 NumV3ToV3(NumericVector3 v)
+        {
+            return new Vector3(v.X, v.Y, v.Z);
+        }
+        public static NumericVector3 V3ToNumV3(Vector3 v)
+        {
+            return new NumericVector3(v.X, v.Y, v.Z);
+        }
+        public static Quaternion NumQuatToQuat(NumericQuaternion quat)
+        {
+            return new Quaternion(quat.X, quat.Y, quat.Z, quat.W);
+        }
 
         protected override void UnloadContent()
         {
@@ -776,4 +850,5 @@ namespace SpaceKarts
         OPTIONS
     }
     
+
 }
