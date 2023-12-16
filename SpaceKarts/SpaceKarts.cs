@@ -131,12 +131,12 @@ namespace SpaceKarts
             IsMouseVisible = bool.Parse(CFG["MouseVisible"]);
 
             string hostname = "nix.dynamic-dns.net";
-            IPAddress[] ips = Dns.GetHostAddresses(hostname);
+            //IPAddress[] ips = Dns.GetHostAddresses(hostname);
 
-            RiptideLogger.Initialize(Console.WriteLine, false);
+            //RiptideLogger.Initialize(Console.WriteLine, false);
 
-            string ip = ips[0].ToString();
-            Debug.WriteLine("connecting to " + ip);
+            //string ip = ips[0].ToString();
+            //Debug.WriteLine("connecting to " + ip);
 
             NetworkManager.Enabled = false;            
             //NetworkManager.Connect(ip, 9999);
@@ -230,10 +230,10 @@ namespace SpaceKarts
             const float wheelBaseLength = frontZ - backZ;
 
 
-            playerController = new SimpleCarController(SimpleCar.Create(Simulation, properties, new NumericVector3(0, 10, 0), bodyShapeIndex, bodyInertia, 0.5f, wheelShapeIndex, wheelInertia, 2f,
+            playerController = new SimpleCarController(SimpleCar.Create(Simulation, properties, new NumericVector3(0, 10, 0), bodyShapeIndex, bodyInertia, 0.5f, wheelShapeIndex, wheelInertia, 5f,
                 new NumericVector3(-x, y, frontZ), new NumericVector3(x, y, frontZ), new NumericVector3(-x, y, backZ), new NumericVector3(x, y, backZ), new NumericVector3(0, -1, 0), 0.25f,
                 new SpringSettings(5f, 0.7f), QuaternionEx.CreateFromAxisAngle(NumericVector3.UnitZ, MathF.PI * 0.5f)),
-                forwardSpeed: 250, forwardForce: 1000, zoomMultiplier: 2, backwardSpeed: 150, backwardForce: 1000, idleForce: 0.25f, brakeForce: 200, steeringSpeed: 5f, maximumSteeringAngle: MathF.PI * 0.55f,
+                forwardSpeed: 250, forwardForce: 50, zoomMultiplier: 2, backwardSpeed: 150, backwardForce: 50, idleForce: 0.25f, brakeForce: 30, steeringSpeed: 2f, maximumSteeringAngle: MathF.PI * 0.23f,
                 wheelBaseLength: wheelBaseLength, wheelBaseWidth: wheelBaseWidth, ackermanSteering: 1);
 
             
@@ -382,7 +382,7 @@ namespace SpaceKarts
                 Matrix.CreateFromQuaternion(NumQuatToQuat(quaternion)) *
                 Matrix.CreateTranslation(NumV3ToV3(position));
 
-            boxPositionStr = "BP " + (int)position.X + "," + (int)position.Y + "," + (int)position.Z;
+            //topBarStr = "BP " + (int)position.X + "," + (int)position.Y + "," + (int)position.Z;
 
 
 
@@ -399,30 +399,31 @@ namespace SpaceKarts
             var targetSpeedFraction = InputManager.keyMappings.AccelerateAlt.IsDown() ? 1f : InputManager.keyMappings.BrakeAlt.IsDown() ? -1f : 0;
 
 
-            if (InputManager.keyMappings.Boost.IsDown())
-            {
-                boost += deltaTimeU *1.5f;
-                if (boost > 1)
-                    boost = 1;
-            }
-            boost -= deltaTimeU * 0.1f;
-            if(boost < 0) 
-                boost = 0;
-            boxPositionStr += " Boost " + boost;
+            
+            //if (InputManager.keyMappings.Boost.IsDown())
+            //{
+            //    boost += deltaTimeU *1.5f;
+            //    if (boost > 1)
+            //        boost = 1;
+            //}
+            //boost -= deltaTimeU * 0.1f;
+            //if(boost < 0) 
+            //    boost = 0;
+            //boxPositionStr += " Boost " + boost;
             //For control purposes, we'll match the fixed update rate of the simulation. Could decouple it- this dt isn't
             //vulnerable to the same instabilities as the simulation itself with variable durations.
-            playerController.Update(Simulation, timeStepDuration, steeringSum, targetSpeedFraction, false, InputManager.keyMappings.BrakeAlt.IsDown());
+            bool brake = playerController.Update(Simulation, timeStepDuration, steeringSum, targetSpeedFraction, false, false);
 
             var b = playerController.Car.Body;
-            var car = Simulation.Bodies.GetBodyReference(b).Pose;
-            var carPos = car.Position;
-            var carQuaternion = car.Orientation;
-
+            var car = Simulation.Bodies.GetBodyReference(b);
+            pose = car.Pose;
+            car.GetVelocityForOffset(NumericVector3.Zero, out var velocity);
+            topBarStr = "";
             //ShipManager.shipList[0].position = carPos;
-            boxPositionStr += " CP " + (int)carPos.X + "," + (int)carPos.Y + "," + (int)carPos.Z;
+            //boxPositionStr += " CP " + (int)carPos.X + "," + (int)carPos.Y + "," + (int)carPos.Z;
             ShipManager.Update(deltaTimeU);
 
-            ShipManager.PlayerUpdate(deltaTimeU, car.Position, car.Orientation);
+            ShipManager.PlayerUpdate(deltaTimeU, pose.Position, pose.Orientation);
 
             gizmos.UpdateViewProjection(camera.view, camera.projection);
 
@@ -433,7 +434,7 @@ namespace SpaceKarts
         int fps;
         float deltaTimeD;
 
-        string boxPositionStr;
+        string topBarStr;
         public bool debugRTs = false;
         public bool debugGizmos = true;
         protected override void Draw(GameTime gameTime)
@@ -663,7 +664,7 @@ namespace SpaceKarts
             SpriteBatch.Begin();
             var lightsCount = lightsManager.lightsToDraw.Count;
             //SpriteBatch.DrawString(Font,"Motion Blur lvl " + motionBlurIntensity+ " FPS: " + fps+" LC "+ lightsCount + " "+ rayS , Vector2.Zero, Color.White);
-            SpriteBatch.DrawString(Font, "FPS " + fps + " " + boxPositionStr, Vector2.Zero, Color.White);
+            SpriteBatch.DrawString(Font, "FPS " + fps + " " + topBarStr, Vector2.Zero, Color.White);
             SpriteBatch.End();
 
             deferredEffect.SetPrevView(camera.view);
@@ -832,7 +833,14 @@ namespace SpaceKarts
         {
             return new Quaternion(quat.X, quat.Y, quat.Z, quat.W);
         }
-
+        public static NumericVector3 QuaternionToFrontDirection(NumericQuaternion quat)
+        {
+            var n = new NumericVector3( 2 * (quat.X * quat.Z - quat.W * quat.Y),
+                                        2 * (quat.Y * quat.Z - quat.W * quat.X),
+                                        1 - 2 * (quat.X * quat.X + quat.Y * quat.Y));
+            return NumericVector3.Normalize(n);
+     
+        }
         protected override void UnloadContent()
         {
             Simulation.Dispose();

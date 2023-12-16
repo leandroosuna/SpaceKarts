@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Numerics;
 using BepuPhysics;
 
 namespace SpaceKarts.Physics
@@ -55,7 +56,7 @@ namespace SpaceKarts.Physics
             previousTargetSpeed = 0;
         }
 
-        public void Update(Simulation simulation, float dt, float targetSteeringAngle, float targetSpeedFraction, bool zoom, bool brake)
+        public bool Update(Simulation simulation, float dt, float targetSteeringAngle, float targetSpeedFraction, bool zoom, bool brake)
         {
             var steeringAngleDifference = targetSteeringAngle - steeringAngle;
             var maximumChange = SteeringSpeed * dt;
@@ -104,6 +105,13 @@ namespace SpaceKarts.Physics
             }
             float newTargetSpeed, newTargetForce;
             bool allWheels;
+
+            var refe = simulation.Bodies.GetBodyReference(Car.Body);
+            var velocity = refe.Velocity.Linear;
+            var frontDirection = SpaceKarts.QuaternionToFrontDirection(refe.Pose.Orientation);
+
+            //var dot = System.Numerics.Vector3.Dot(velocity, frontDirection);
+            //var brake = velocity.Length() > 2f && (dot > 0 && targetSpeedFraction < 0) || (dot < 0 && targetSpeedFraction > 0);
             if (brake)
             {
                 newTargetSpeed = 0;
@@ -146,6 +154,7 @@ namespace SpaceKarts.Physics
                     Car.SetSpeed(simulation, Car.BackRightWheel, 0, 0);
                 }
             }
+            return brake;
         }
     }
 }

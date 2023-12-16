@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
+using SharpDX.XAudio2;
 using SpaceKarts.Managers;
 using System;
 using System.Collections.Generic;
@@ -52,7 +53,7 @@ namespace SpaceKarts.Cameras
             yaw = 310;
             pitch = -36;
             center = new System.Drawing.Point(screenCenter.X, screenCenter.Y);
-            isFree = false;
+            isFree = true;
             UpdateCameraVectors();
             CalculateView();
             CalculateProjection();
@@ -63,31 +64,42 @@ namespace SpaceKarts.Cameras
         }
         public void Update(float deltaTime)
         {
-            var inputManager = game.currentInputManager;
-            mouseDelta = inputManager.mouseDelta;
-            var ship = ShipManager.shipList[0];
+            if(isFree)
+            {
+                var inputManager = game.currentInputManager;
+                mouseDelta = inputManager.mouseDelta;
+                var ship = ShipManager.shipList[0];
 
-            position = inputManager.playerPosition;
-            //position = ship.position - ship.moveDirection * 10 + new Vector3(0,10,0) ;
+                position = inputManager.playerPosition;
 
-            //frontDirection = Vector3.Normalize(ship.position - position);
-            //rightDirection = Vector3.Normalize(Vector3.Cross(frontDirection, Vector3.Up));
-            //upDirection = Vector3.Normalize(Vector3.Cross(rightDirection, frontDirection));
-            yaw += mouseDelta.X;
-            if (yaw < 0)
-                yaw += 360;
-            yaw %= 360;
+                yaw += mouseDelta.X;
+                if (yaw < 0)
+                    yaw += 360;
+                yaw %= 360;
 
-            pitch -= mouseDelta.Y;
+                pitch -= mouseDelta.Y;
 
-            if (pitch > 89.0f)
-                pitch = 89.0f;
-            else if (pitch < -89.0f)
-                pitch = -89.0f;
+                if (pitch > 89.0f)
+                    pitch = 89.0f;
+                else if (pitch < -89.0f)
+                    pitch = -89.0f;
 
-            UpdateCameraVectors();
+                UpdateCameraVectors();
+            }
+            else
+            {
+                var car = game.Simulation.Bodies.GetBodyReference(game.playerController.Car.Body);
+                var pos = SpaceKarts.NumV3ToV3(car.Pose.Position);
+                var numfront = System.Numerics.Vector3.Transform(new System.Numerics.Vector3(0, 0, 1), car.Pose.Orientation);
+                var carFront = SpaceKarts.NumV3ToV3(numfront);
+
+                position = pos - carFront * 5 + new Vector3(0, 5, 0);
+                frontDirection = Vector3.Normalize((pos + carFront * 2) - position);
+
+                rightDirection = Vector3.Normalize(Vector3.Cross(frontDirection, Vector3.Up));
+                upDirection = Vector3.Normalize(Vector3.Cross(rightDirection, frontDirection));
+            }
             CalculateView();
-
             frustum.Matrix = view * projection;
         }
         void UpdateCameraVectors()
@@ -131,6 +143,21 @@ namespace SpaceKarts.Cameras
             UpdateCameraVectors();
             CalculateView();
 
+        }
+        public void SetFree(bool free)
+        {
+            isFree = free;
+            if(isFree)
+            {
+                game.currentInputManager.playerPosition = position;
+                yaw = MathHelper.ToDegrees((float)Math.Atan2(frontDirection.Y, frontDirection.X));
+                if (yaw < 0)
+                    yaw += 360;
+                else if (yaw > 360)
+                    yaw -= 360;
+                pitch = 0f;
+                game.currentInputManager.mouseDelta = Vector2.Zero; 
+            }
         }
 
     }

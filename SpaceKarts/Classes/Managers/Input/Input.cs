@@ -69,6 +69,7 @@ namespace SpaceKarts.Managers
             keyMappings.Debug7 = new KeyboardKey(Keys.D7);
             keyMappings.Debug8 = new KeyboardKey(Keys.D8);
             keyMappings.Debug9 = new KeyboardKey(Keys.D9);
+            keyMappings.TAB = new KeyboardKey(Keys.CapsLock);
         }
 
         public abstract void ProcessInput(float deltaTime);
@@ -257,7 +258,7 @@ namespace SpaceKarts.Managers
             public List<Key> MappedKeys;
 
             public Key Debug1,Debug2,Debug3,Debug0, Debug7, Debug8,Debug9;
-
+            public Key TAB;
             public Key convertKey(Keys key)
             {
                 //Keys.F20 = MB1

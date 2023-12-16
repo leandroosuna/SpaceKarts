@@ -72,13 +72,13 @@ namespace SpaceKarts.Managers
                         game.motionBlurIntensity = 5;
                 }
             }
-            if (keyMappings.Debug0.IsDown())
+            if (keyMappings.TAB.IsDown())
             {
-                if (!keysDown.Contains(keyMappings.Debug0))
+                if (!keysDown.Contains(keyMappings.TAB))
                 {
-                    keysDown.Add(keyMappings.Debug0);
+                    keysDown.Add(keyMappings.TAB);
 
-                    camera.isFree = !camera.isFree;
+                    camera.SetFree(!camera.isFree);
                 }
             }
             if (keyMappings.Debug7.IsDown())
