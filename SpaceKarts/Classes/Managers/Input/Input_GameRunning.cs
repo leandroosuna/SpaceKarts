@@ -147,6 +147,8 @@ namespace SpaceKarts.Managers
                 dir += Vector3.Up;
                 dirChanged = true;
             }
+            
+
             if (keyState.IsKeyDown(Keys.LeftControl))
             {
                 dir += Vector3.Down;

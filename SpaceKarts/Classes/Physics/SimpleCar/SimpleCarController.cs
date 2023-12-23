@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Numerics;
 using BepuPhysics;
 
@@ -56,7 +57,7 @@ namespace SpaceKarts.Physics
             previousTargetSpeed = 0;
         }
 
-        public bool Update(Simulation simulation, float dt, float targetSteeringAngle, float targetSpeedFraction, bool zoom, bool brake)
+        public bool Update(Simulation simulation, float dt, float targetSteeringAngle, float targetSpeedFraction, bool boost, bool brake)
         {
             var steeringAngleDifference = targetSteeringAngle - steeringAngle;
             var maximumChange = SteeringSpeed * dt;
@@ -64,10 +65,19 @@ namespace SpaceKarts.Physics
             var previousSteeringAngle = steeringAngle;
             
             steeringAngle = MathF.Min(MaximumSteeringAngle, MathF.Max(-MaximumSteeringAngle, steeringAngle + steeringAngleChange));
+            float leftSteeringAngle = 0;
+            float rightSteeringAngle = 0;
+            
+            var refe = simulation.Bodies.GetBodyReference(Car.Body);
+            var velocity = refe.Velocity.Linear;
+            var frontDirection = SpaceKarts.QuaternionToFrontDirection(refe.Pose.Orientation);
+
+            var dot = Vector3.Dot(velocity, frontDirection);
+            var changeDirection =  (dot < 0 && targetSpeedFraction < 0) || (dot > 0 && targetSpeedFraction > 0);
+
+            //steeringAngle *= 
             if (steeringAngle != previousSteeringAngle)
             {
-                float leftSteeringAngle;
-                float rightSteeringAngle;
 
                 float steeringAngleAbs = MathF.Abs(steeringAngle);
 
@@ -106,55 +116,54 @@ namespace SpaceKarts.Physics
             float newTargetSpeed, newTargetForce;
             bool allWheels;
 
-            var refe = simulation.Bodies.GetBodyReference(Car.Body);
-            var velocity = refe.Velocity.Linear;
-            var frontDirection = SpaceKarts.QuaternionToFrontDirection(refe.Pose.Orientation);
 
-            //var dot = System.Numerics.Vector3.Dot(velocity, frontDirection);
-            //var brake = velocity.Length() > 2f && (dot > 0 && targetSpeedFraction < 0) || (dot < 0 && targetSpeedFraction > 0);
-            if (brake)
+            var braking = brake || changeDirection;
+            if (braking)
             {
                 newTargetSpeed = 0;
                 newTargetForce = BrakeForce;
-                allWheels = true;
+
             }
             else if (targetSpeedFraction > 0)
             {
-                newTargetForce = zoom ? ForwardForce * ZoomMultiplier : ForwardForce;
-                newTargetSpeed = targetSpeedFraction * (zoom ? ForwardSpeed * ZoomMultiplier : ForwardSpeed);
-                allWheels = true;
+                newTargetForce = ForwardForce;
+                newTargetSpeed = targetSpeedFraction * ForwardSpeed;
             }
             else if (targetSpeedFraction < 0)
             {
-                newTargetForce = zoom ? BackwardForce * ZoomMultiplier : BackwardForce;
-                newTargetSpeed = targetSpeedFraction * (zoom ? BackwardSpeed * ZoomMultiplier : BackwardSpeed);
-                allWheels = true;
+                newTargetForce = BackwardForce;
+                newTargetSpeed = targetSpeedFraction * BackwardSpeed;
             }
             else
             {
                 newTargetForce = IdleForce;
                 newTargetSpeed = 0;
-                allWheels = true;
             }
+            
             if (previousTargetSpeed != newTargetSpeed || previousTargetForce != newTargetForce)
             {
                 previousTargetSpeed = newTargetSpeed;
                 previousTargetForce = newTargetForce;
-                Car.SetSpeed(simulation, Car.FrontLeftWheel, newTargetSpeed, newTargetForce);
-                Car.SetSpeed(simulation, Car.FrontRightWheel, newTargetSpeed, newTargetForce);
+
+                var targetSpeedL = newTargetSpeed ;
+                var targetSpeedR = newTargetSpeed ;
+
                 
-                if (allWheels)
-                {
-                    Car.SetSpeed(simulation, Car.BackLeftWheel, newTargetSpeed, newTargetForce * 0.2f);
-                    Car.SetSpeed(simulation, Car.BackRightWheel, newTargetSpeed, newTargetForce * 0.2f);
-                }
-                else
-                {
-                    Car.SetSpeed(simulation, Car.BackLeftWheel, 0, 0);
-                    Car.SetSpeed(simulation, Car.BackRightWheel, 0, 0);
-                }
+                
+                Car.SetSpeed(simulation, Car.FrontLeftWheel, targetSpeedL, braking? newTargetForce * 1.5f : newTargetForce * .2f);
+                Car.SetSpeed(simulation, Car.FrontRightWheel, targetSpeedR, braking? newTargetForce * 1.5f : newTargetForce * .2f);
+                
+                Car.SetSpeed(simulation, Car.BackLeftWheel, targetSpeedL, newTargetForce );
+                Car.SetSpeed(simulation, Car.BackRightWheel, targetSpeedR, newTargetForce );
+                
             }
-            return brake;
+            if(boost)
+            {
+                var impulse = Vector3.Normalize(refe.Velocity.Linear) * 2f;
+
+                refe.ApplyImpulse(impulse, Vector3.Zero);
+            }
+            return braking;
         }
     }
 }
